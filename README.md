@@ -9,6 +9,6 @@ An autonomous, zero-cost closed-loop security remediation platform designed to e
 * **Self-Repair**: Autonomous reflection loops.
 
 ## 🚀 Quick Start
-\`\`\`bash
+```bash
 python3 run_master_pipeline.py
-\`\`\`
+```
