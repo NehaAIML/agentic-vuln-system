@@ -5,3 +5,4 @@ __pycache__/
 .DS_Store
 sample_repo/*.json
 !sample_repo/vuln_scan_results.json
+.env
