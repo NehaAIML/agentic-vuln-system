@@ -25,9 +25,9 @@ This repository implements a local, zero-vendor-lock-in pipeline that filters un
 * **Self-Repair Loop (built into `sandbox/sandbox_runner.py`)**: On a failed apply or failed test, the real error output is fed back into the next `generate_patch()` call as `prior_error`, up to 3 attempts; refuses to open a pull request if verification never succeeds.
 
 
-## 3. Rigorous Validation & Test Suite
+## 3. Validation & Test Suite
 
-Unlike systems that rely on speculative mock runs, this codebase is backed by rigorous test enforcement:
+What's actually tested, as of the last full run:
 * **38 Passing Unit Tests (`tests/`)**: Fully cover reachability resolution, AST call-graph construction, diff sanitization, and retry logic.
 * **Ground-Truth Simulation (`simulate.py`)**: Executes a synthetic 4-file repository with 4 known CVEs (reachable, dead code, and unrelated) against hand-verified expected outputs.
 * **Adversarial Self-Repair Testing**: Verified via dedicated unit tests ensuring that a patch breaking a test is correctly rejected, and a corrected patch on the second attempt is accepted without wasting retry attempts.
