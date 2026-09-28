@@ -1,24 +1,3 @@
-"""
-sandbox_runner.py
-------------------
-Step 4: Sandboxed TDD Self-Repair Loop.
-
-Never applies an AI-generated patch to the real repo directly. Instead:
-  1. Copies the repo into a fresh tempfile.mkdtemp() sandbox.
-  2. Applies the generated diff there (`git apply` if it's a git repo,
-     falling back to the `patch` utility otherwise).
-  3. Runs the project's test suite inside the sandbox via subprocess,
-     with a timeout so a hung test can't hang the agent.
-  4. On failure, captures the exact stdout/stderr/traceback and feeds it
-     back into patch_generator.generate_patch() as `prior_error` so the
-     LLM can refine the diff. Repeats up to `max_attempts` (default 3).
-  5. Returns a structured result: success/fail, final diff, full attempt
-     history (for the Proof-of-Execution report in Step 5).
-
-This module is intentionally decoupled from git remotes -- it only ever
-touches the temporary sandbox copy. Nothing here can corrupt the user's
-working tree.
-"""
 import shutil
 import subprocess
 import tempfile
@@ -61,7 +40,7 @@ def _run(cmd: List[str], cwd: str, timeout: int = 120) -> subprocess.CompletedPr
 def make_sandbox(repo_path: str) -> str:
     """Copy the repo into a fresh temp dir. Returns the sandbox path."""
     sandbox = tempfile.mkdtemp(prefix="vuln_patch_sandbox_")
-    # Copy contents (not the dir itself) so sandbox root == repo root
+    # Copy contents (not the dir itself) so sandbox root== repo root
     shutil.copytree(repo_path, sandbox, dirs_exist_ok=True,
                      ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc",
                                                     ".venv", "venv", "node_modules"))
@@ -70,11 +49,9 @@ def make_sandbox(repo_path: str) -> str:
 
 def apply_diff(sandbox_path: str, diff_text: str) -> tuple[bool, str]:
     """
-    Try `git apply` first (handles most unified diffs cleanly, works even
-    outside a git repo with --unsafe-paths off since we pass full text via
-    stdin against a plain directory tree using `git apply --directory`).
-    Falls back to the classic `patch` utility if git isn't available or
-    the sandbox isn't a git repo.
+    Try `git apply` first (handles most unified diffs cleanly).
+    Falls back to the classic `patch` utility with a 10-second timeout
+    to prevent hanging on malformed diffs.
     """
     patch_file = Path(sandbox_path) / "_agent_patch.diff"
     patch_file.write_text(diff_text)
@@ -82,8 +59,7 @@ def apply_diff(sandbox_path: str, diff_text: str) -> tuple[bool, str]:
     is_git_repo = (Path(sandbox_path) / ".git").exists()
     if not is_git_repo:
         # Initialize a throwaway git repo so `git apply` has something to
-        # check the patch against; this also gives us `git diff` later for
-        # the Proof-of-Execution report.
+        # check the patch against
         init = _run(["git", "init", "-q"], cwd=sandbox_path)
         _run(["git", "add", "-A"], cwd=sandbox_path)
         _run(["git", "-c", "user.email=agent@local", "-c", "user.name=agent",
@@ -96,18 +72,26 @@ def apply_diff(sandbox_path: str, diff_text: str) -> tuple[bool, str]:
     if result.returncode == 0:
         return True, result.stdout + result.stderr
 
-    # Fall back to `patch -p1`
-    with open(patch_file) as f:
-        patch_proc = subprocess.run(
-            ["patch", "-p1", "--fuzz=3"],
-            cwd=sandbox_path, stdin=f, capture_output=True, text=True,
-        )
-    if patch_proc.returncode == 0:
-        return True, patch_proc.stdout + patch_proc.stderr
+    # Fall back to `patch -p1` with timeout to prevent hanging
+    try:
+        with open(patch_file) as f:
+            patch_proc = subprocess.run(
+                ["patch", "-p1", "--fuzz=3"],
+                cwd=sandbox_path,
+                stdin=f,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+        if patch_proc.returncode == 0:
+            return True, patch_proc.stdout + patch_proc.stderr
+        patch_error = patch_proc.stdout + patch_proc.stderr
+    except subprocess.TimeoutExpired:
+        patch_error = "patch command timed out after 10 seconds"
 
     combined_error = (
         f"git apply failed:\n{result.stdout}\n{result.stderr}\n\n"
-        f"patch -p1 fallback also failed:\n{patch_proc.stdout}\n{patch_proc.stderr}"
+        f"patch -p1 fallback also failed:\n{patch_error}"
     )
     return False, combined_error
 
@@ -234,15 +218,7 @@ def remediate_batch(repo_path: str, vulns_and_contexts: List[Dict[str, Any]],
     """
     Batch mode: apply the generated fix for every given vulnerability into
     ONE shared sandbox, then run the test suite once against the combined
-    result. This mirrors the realistic end state (a single PR that
-    remediates every reachable CVE found in this pass) and avoids a false
-    failure signal where CVE A's isolated sandbox fails only because of
-    CVE B's still-unpatched issue elsewhere in the same file/repo.
-
-    Per-vulnerability self-repair still happens (each patch is generated
-    fresh, and if it fails to even *apply* on its own it's retried against
-    that same growing sandbox), but the final pass/fail gate is the whole
-    suite, run once, after all patches are stacked.
+    result.
     """
     sandbox_path = make_sandbox(repo_path)
     per_vuln_results = []
