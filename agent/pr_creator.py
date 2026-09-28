@@ -1,7 +1,241 @@
-import subprocess
+"""
+pr_creator.py
+-------------
+Step 5: Automated PR Creation & Proof-of-Execution.
 
-def create_pull_request(branch_name: str, patch_content: str, proof_logs: str) -> bool:
-    """Simulates or executes automated PR creation with proof-of-execution logs."""
-    print(f"[PRCreator] Opening Pull Request for branch: {branch_name}")
-    print(f"[PRCreator] Attached Proof Logs:\n{proof_logs[:200]}...")
-    return True
+Given a successful batch remediation result (from sandbox_runner.remediate_batch),
+this module:
+  1. Creates a new branch off the real repo (not the sandbox) named
+     fix/cve-<ids> and applies the same validated diff(s) there.
+  2. Commits the change.
+  3. Pushes the branch and opens a PR via `gh pr create` (GitHub CLI) if
+     available, falling back to GitPython for the branch/commit/push steps
+     and printing a manual PR-creation URL if `gh` isn't installed/authed.
+  4. Generates a Proof-of-Execution markdown report (test logs before/after,
+     per-CVE summary, attempt counts) and embeds it as the PR body.
+
+IMPORTANT: This only ever operates on a NEW branch. It never force-pushes,
+never touches main/master directly, and never merges -- opening the PR is
+the end of the automated part; a human reviews and merges it.
+"""
+import json
+import shutil
+import subprocess
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Dict, Any, List, Optional
+
+
+def _run(cmd: List[str], cwd: str, check: bool = True) -> subprocess.CompletedProcess:
+    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    if check and result.returncode != 0:
+        raise RuntimeError(f"Command failed: {' '.join(cmd)}\n{result.stdout}\n{result.stderr}")
+    return result
+
+
+def build_proof_of_execution_report(batch_result: Dict[str, Any],
+                                     baseline_test_output: Optional[str] = None) -> str:
+    """Markdown report to embed as the PR description."""
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    lines = [
+        "## 🤖 Automated Vulnerability Remediation — Proof of Execution",
+        "",
+        f"_Generated {ts} by the Agentic Vulnerability Triage & Patching pipeline._",
+        "",
+        "### CVEs addressed in this PR",
+        "",
+        "| CVE | Package | Patch Applied | Attempts |",
+        "|---|---|---|---|",
+    ]
+    for p in batch_result["patches"]:
+        attempts = len(p.get("apply_attempts", []))
+        lines.append(f"| {p['vuln_id']} | {p['package']} | "
+                      f"{'✅' if p['applied'] else '❌'} | {attempts} |")
+
+    lines += [
+        "",
+        "### Regression test results (after patch, in isolated sandbox)",
+        "",
+        "```",
+        (batch_result.get("test_output", "") or "").strip()[-3000:],
+        "```",
+        "",
+        f"**Overall test suite: {'PASSED ✅' if batch_result.get('tests_passed') else 'FAILED ❌'}**",
+        "",
+    ]
+
+    if baseline_test_output:
+        lines += [
+            "### Baseline (pre-patch) test results for comparison",
+            "",
+            "```",
+            baseline_test_output.strip()[-3000:],
+            "```",
+            "",
+        ]
+
+    lines += [
+        "---",
+        "_This patch was generated and verified automatically. It was tested in an "
+        "isolated sandbox before this PR was opened, but still requires human review "
+        "before merge — automated patches can be subtly wrong even when tests pass._",
+    ]
+    return "\n".join(lines)
+
+
+def apply_patches_to_new_branch(repo_path: str, batch_result: Dict[str, Any],
+                                 branch_name: Optional[str] = None) -> str:
+    """
+    Re-applies the (already-validated-in-sandbox) diffs onto a fresh branch
+    of the REAL repo. Never touches the current checked-out branch's
+    working state beyond creating+switching to the new branch.
+    """
+    if branch_name is None:
+        ids = "-".join(p["vuln_id"].replace("CVE-", "").lower() for p in batch_result["patches"])
+        branch_name = f"fix/cve-{ids}"[:60]
+
+    is_git_repo = (Path(repo_path) / ".git").exists()
+    if not is_git_repo:
+        _run(["git", "init", "-q"], cwd=repo_path)
+        _run(["git", "add", "-A"], cwd=repo_path)
+        _run(["git", "-c", "user.email=agent@local", "-c", "user.name=agent",
+              "commit", "-q", "-m", "baseline (pre-agent)"], cwd=repo_path, check=False)
+
+    _run(["git", "checkout", "-b", branch_name], cwd=repo_path)
+
+    patch_file = Path(repo_path) / "_pr_patch.diff"
+    combined_diff = "\n".join(p["diff"] for p in batch_result["patches"] if p.get("diff"))
+    patch_file.write_text(combined_diff)
+
+    apply_result = _run(["git", "apply", "--whitespace=fix", patch_file.name],
+                         cwd=repo_path, check=False)
+    if apply_result.returncode != 0:
+        raise RuntimeError(
+            f"Re-applying validated patch to real branch {branch_name} failed "
+            f"unexpectedly (it succeeded in the sandbox): {apply_result.stderr}"
+        )
+    patch_file.unlink()
+
+    cve_list = ", ".join(p["vuln_id"] for p in batch_result["patches"])
+    commit_msg = f"fix: auto-remediate {cve_list}\n\nGenerated by the vulnerability triage agent."
+    _run(["git", "add", "-A"], cwd=repo_path)
+    _run(["git", "-c", "user.email=agent@local", "-c", "user.name=agent",
+          "commit", "-q", "-m", commit_msg], cwd=repo_path)
+
+    return branch_name
+
+
+def open_pull_request(repo_path: str, branch_name: str, title: str, body: str,
+                       base_branch: str = "main", remote: str = "origin") -> str:
+    """
+    Push the branch and open a PR via `gh pr create`. If `gh` isn't
+    installed/authenticated, or there's no configured remote, falls back to
+    pushing (if possible) and returning a manual-creation message instead of
+    raising -- opening a PR is a nice-to-have completion step, not something
+    that should crash the whole pipeline over.
+    """
+    has_remote = _run(["git", "remote"], cwd=repo_path, check=False).stdout.strip() != ""
+
+    if has_remote:
+        push_result = _run(["git", "push", "-u", remote, branch_name], cwd=repo_path, check=False)
+        if push_result.returncode != 0:
+            return (f"[warn] Branch '{branch_name}' created locally but push to "
+                    f"'{remote}' failed:\n{push_result.stderr}\n"
+                    f"Push manually and open a PR once you've verified the branch.")
+    else:
+        return (f"[info] Branch '{branch_name}' created locally with the validated fix. "
+                f"No git remote is configured, so no push/PR was attempted. "
+                f"Add a remote (`git remote add origin <url>`) and push this branch "
+                f"to open a PR.")
+
+    if shutil.which("gh") is None:
+        return (f"Branch '{branch_name}' pushed to '{remote}'. "
+                f"GitHub CLI (`gh`) isn't installed, so open the PR manually at your "
+                f"repo's compare page for this branch.")
+
+    body_file = Path(repo_path) / "_pr_body.md"
+    body_file.write_text(body)
+    pr_result = _run(
+        ["gh", "pr", "create", "--title", title, "--body-file", str(body_file),
+         "--base", base_branch, "--head", branch_name],
+        cwd=repo_path, check=False,
+    )
+    body_file.unlink()
+
+    if pr_result.returncode != 0:
+        return f"[warn] `gh pr create` failed:\n{pr_result.stderr}\nBranch '{branch_name}' was pushed; open the PR manually."
+
+    return pr_result.stdout.strip()  # gh prints the PR URL on success
+
+
+def create_pr_for_batch(repo_path: str, batch_result: Dict[str, Any],
+                         baseline_test_output: Optional[str] = None,
+                         base_branch: str = "main", dry_run: bool = True) -> Dict[str, Any]:
+    """
+    Full Step 5 flow. `dry_run=True` (the default) stops after creating the
+    local branch + commit and generating the report, WITHOUT pushing or
+    calling `gh` -- safe to run against a real repo without touching any
+    remote. Set dry_run=False once you've pointed this at a real repo with
+    a remote you control.
+    """
+    if not batch_result.get("success"):
+        return {
+            "pr_created": False,
+            "reason": "Batch remediation did not fully succeed; refusing to open a PR "
+                      "for an unverified patch set.",
+            "batch_result_summary": {
+                "all_applied": batch_result.get("all_applied"),
+                "tests_passed": batch_result.get("tests_passed"),
+            },
+        }
+
+    report = build_proof_of_execution_report(batch_result, baseline_test_output)
+    branch_name = apply_patches_to_new_branch(repo_path, batch_result)
+
+    cve_ids = ", ".join(p["vuln_id"] for p in batch_result["patches"])
+    title = f"fix: auto-remediate {cve_ids}"
+
+    if dry_run:
+        return {
+            "pr_created": False,
+            "dry_run": True,
+            "branch_name": branch_name,
+            "title": title,
+            "body": report,
+            "note": "dry_run=True: branch + commit created locally only. "
+                    "Re-run with dry_run=False (and a real git remote) to push and open the PR.",
+        }
+
+    pr_result = open_pull_request(repo_path, branch_name, title, report, base_branch=base_branch)
+    return {
+        "pr_created": pr_result.startswith("http"),
+        "branch_name": branch_name,
+        "title": title,
+        "body": report,
+        "result_message": pr_result,
+    }
+
+
+def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("repo_path")
+    parser.add_argument("remediation_results_json")
+    parser.add_argument("--base-branch", default="main")
+    parser.add_argument("--push", action="store_true", help="Actually push + open PR (default: dry-run)")
+    args = parser.parse_args()
+
+    with open(args.remediation_results_json) as f:
+        batch_result = json.load(f)
+
+    result = create_pr_for_batch(
+        args.repo_path, batch_result, base_branch=args.base_branch, dry_run=not args.push
+    )
+    print(json.dumps({k: v for k, v in result.items() if k != "body"}, indent=2))
+    if "body" in result:
+        print("\n--- PR body preview ---\n")
+        print(result["body"])
+
+
+if __name__ == "__main__":
+    main()
