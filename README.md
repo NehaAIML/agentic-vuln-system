@@ -2,7 +2,10 @@
 
 # Enterprise Agentic Vulnerability Triage and Automated Remediation System
 
-### **[ Autonomous Vulnerability Triage & Automated Patching Engine ]**
+### **[ Autonomous Vulnerability Triage & Automated Patching Engine ]
+
+![Dashboard Preview](assets/dashboard-preview.png)
+**
 *AST Reachability | EPSS Threat Intel | Sandboxes | Self-Repair*
 
 </div>
