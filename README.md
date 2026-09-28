@@ -25,21 +25,6 @@ This repository implements a local, zero-vendor-lock-in pipeline that filters un
 * **Agentic Self-Repair Loop (`agent/self_repair.py`)**: Captures test error tracebacks upon test failure inside the sandbox and feeds them back into iterative reflection loops to refine patch syntax and logic, refusing to open a pull request if verification fails after maximum attempts.
 
 
-## System Architecture
-
-\`\`\`mermaid
-graph TD
-    A[Vulnerability Scan / CVEs] --> B[AST Call-Graph Reachability]
-    B -->|Filter Dead Code| C[EPSS Threat Prioritization]
-    C --> D[Local / Cloud LLM Patch Generator]
-    D --> E[Sandboxed TDD Execution Loop]
-    E -->|Test Failure| F[Agentic Self-Repair Reflection]
-    F -->|Refined Patch| E
-    E -->|Tests Passed| G[Automated Branch & PR Creation]
-\`\`\`
-
----
-
 ## 3. Rigorous Validation & Test Suite
 
 Unlike systems that rely on speculative mock runs, this codebase is backed by rigorous test enforcement:
@@ -86,3 +71,16 @@ Building and testing this pipeline uncovered three critical edge cases documente
 ## Dashboard Preview
 
 ![Dashboard Preview](assets/dashboard-preview.png)
+## System Architecture
+
+```mermaid
+graph TD
+    A[Vulnerability Scan / CVEs] --> B[AST Call-Graph Reachability]
+    B -->|Filter Dead Code| C[EPSS Threat Prioritization]
+    C --> D[Local / Cloud LLM Patch Generator]
+    D --> E[Sandboxed TDD Execution Loop]
+    E -->|Test Failure| F[Agentic Self-Repair Reflection]
+    F -->|Refined Patch| E
+    E -->|Tests Passed| G[Automated Branch & PR Creation]
+```
+
