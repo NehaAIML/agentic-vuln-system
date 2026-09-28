@@ -1,3 +1,7 @@
+# Enterprise Agentic Vulnerability Triage and Automated Remediation System
+
+An autonomous security assistant that scans your code for vulnerabilities, ignores false alarms where the vulnerable code isn't actually used, generates AI-powered fixes, and tests them safely in an isolated sandbox before creating a pull request.
+
 <div align="center">
 
 # Agentic Vulnerability Triage and Automated Patching System
