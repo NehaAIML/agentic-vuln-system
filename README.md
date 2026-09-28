@@ -1,28 +1,39 @@
-# Enterprise Agentic Vulnerability Triage and Automated Remediation System
+# Agentic Vulnerability Triage and Automated Patching System
 
-```text
-╔═══════════════════════════════════════════════════════════════════════════╗
-║   ██╗   ██╗██╗   ██╗██╗     ███╗   ██╗██╗ ██████╗███████╗                 ║
-║   ██║   ██║██║   ██║██║     ████╗  ██║██║██╔════╝██╔════╝                 ║
-║   ██║   ██║██║   ██║██║     ██╔██╗ ██║██║██║     ███████╗                 ║
-║   ╚██╗ ██╔╝██║   ██║██║     ██║╚██╗██║██║██║     ╚════██║                 ║
-║    ╚████╔╝ ╚██████╔╝███████╗██║ ╚████║██║╚██████╗███████║                 ║
-║     ╚═══╝   ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚═╝ ╚═════╝╚══════╝                 ║
-║                                                                           ║
-║   [ Autonomous Vulnerability Triage & Automated Patching Engine ]         ║
-║   AST Reachability | EPSS Threat Intel | Docker Sandboxes | Self-Repair   ║
-╚═══════════════════════════════════════════════════════════════════════════╝
-```
+A local pipeline that filters unreachable CVEs via AST call-graphs, prioritizes vulnerabilities with live EPSS scores, drafts code fixes, and verifies them inside isolated environments before generating patches. Python/PyPI scope only.
 
-An autonomous, zero-cost closed-loop security remediation platform designed to eliminate alert fatigue, eliminate false positives, and automate secure code patching at scale.
+## Core Modules
 
-## 🏛️ Core Modules
-* **AST Reachability**: Parses abstract syntax trees to filter dead code.
-* **EPSS Threat Intel**: Queries live FIRST.org exploit scoring API.
-* **Docker Sandbox**: Secure ephemeral container test execution.
-* **Self-Repair Loop**: Autonomous trace-backed reflection loops.
+* **AST Call-Graph Reachability (`scanners/reachability.py`)**: Parses abstract syntax trees to determine if vulnerable third-party dependencies are actively invoked in execution paths, filtering out dead code.
+* **Live EPSS Scoring (`scanners/prioritization.py`)**: Queries the official FIRST.org EPSS API in real time for exploit probabilities.
+* **Sandbox Execution (`sandbox/docker_sandbox.py`)**: Isolates test execution to verify patches without side effects.
+* **Self-Repair Loop (`agent/self_repair.py`)**: Captures test error tracebacks upon failure and feeds them back into reflection loops to refine patch logic.
 
-## 🚀 Quick Start
-```bash
-python3 run_master_pipeline.py
-```
+## Quick Start & Setup
+
+1. Create and activate a virtual environment:
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   ```
+
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Run the master pipeline:
+   ```bash
+   python3 run_master_pipeline.py
+   ```
+
+4. Run unit tests:
+   ```bash
+   python3 -m pytest tests/ -v
+   ```
+
+## Limitations & Scope
+
+* Designed as a single-repo, local developer tool and workflow automation utility.
+* Does not replace comprehensive enterprise vulnerability scanners or guarantee full application security.
+* Relies on local Python runtimes and optional container runtimes for sandbox verification.
