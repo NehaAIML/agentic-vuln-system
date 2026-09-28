@@ -1,14 +1,3 @@
-import re
-
-def sanitize_patch(raw_output: str) -> str:
-    # Remove markdown code blocks if present
-    cleaned = re.sub(r"^```(?:diff)?\s*\n", "", raw_output, flags=re.MULTILINE)
-    cleaned = re.sub(r"\n\s*```\s*$", "", cleaned)
-    # Strip trailing whitespace on each line which causes git apply to fail
-    lines = [line.rstrip() for line in cleaned.splitlines()]
-    return "\n".join(lines) + "\n"
-
-
 """
 patch_generator.py
 -------------------

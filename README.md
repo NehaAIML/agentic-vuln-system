@@ -1,6 +1,6 @@
 <div align="center">
 
-# Enterprise Agentic Vulnerability Triage and Automated Remediation System
+# Agentic Vulnerability Triage and Automated Patching System
 
 ### **[ Autonomous Vulnerability Triage & Automated Patching Engine ]**
 *AST Reachability | EPSS Threat Intel | Sandboxes | Self-Repair*
@@ -20,9 +20,9 @@ This repository implements a local, zero-vendor-lock-in pipeline that filters un
 ## 2. Core Architecture & Modules
 
 * **AST Call-Graph Reachability Engine (`scanners/reachability.py`)**: Parses abstract syntax trees to resolve import aliases (e.g., `PyYAML` imported as `yaml`) and maps third-party dependencies to actual invocation lines, filtering out dead code.
-* **Live EPSS Threat Scoring (`scanners/prioritization.py`)**: Queries the official FIRST.org EPSS API in real time to prioritize vulnerabilities based on active exploit probability rather than static CVSS severity alone.
+* **Live EPSS Threat Scoring (`scanners/prioritization.py`)**: Queries the official FIRST.org EPSS API in real time to prioritize vulnerabilities based on active exploit probability. Not currently covered by the test suite — treat scores as informational until a mocked-response test exists.
 * **Temporary Sandbox Execution (`sandbox/sandbox_runner.py`)**: Applies generated patches to isolated temporary-directory copies of the target repository and executes the real test suite against the patched copy.
-* **Agentic Self-Repair Loop (`agent/self_repair.py`)**: Captures test error tracebacks upon test failure inside the sandbox and feeds them back into iterative reflection loops to refine patch syntax and logic, refusing to open a pull request if verification fails after maximum attempts.
+* **Self-Repair Loop (built into `sandbox/sandbox_runner.py`)**: On a failed apply or failed test, the real error output is fed back into the next `generate_patch()` call as `prior_error`, up to 3 attempts; refuses to open a pull request if verification never succeeds.
 
 
 ## 3. Rigorous Validation & Test Suite
