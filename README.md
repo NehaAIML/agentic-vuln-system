@@ -79,7 +79,7 @@ graph TD
     B -->|Filter Dead Code| C[EPSS Threat Prioritization]
     C --> D[Local / Cloud LLM Patch Generator]
     D --> E[Sandboxed TDD Execution Loop]
-    E -->|Test Failure| F[Agentic Self-Repair Reflection]
+    E -->|Test Failure| F[Retry with Real Error Fed Back]
     F -->|Refined Patch| E
     E -->|Tests Passed| G[Automated Branch & PR Creation]
 ```
