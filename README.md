@@ -3,8 +3,6 @@
 # Enterprise Agentic Vulnerability Triage and Automated Remediation System
 
 ### **[ Autonomous Vulnerability Triage & Automated Patching Engine ]**
-
-![Dashboard Preview](assets/dashboard-preview.png)
 *AST Reachability | EPSS Threat Intel | Sandboxes | Self-Repair*
 
 </div>
@@ -68,3 +66,9 @@ Building and testing this pipeline uncovered three critical edge cases documente
    ```bash
    python3 -m pytest tests/ -v
    ```
+
+---
+
+## Dashboard Preview
+
+![Dashboard Preview](assets/dashboard-preview.png)
