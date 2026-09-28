@@ -1,18 +1,13 @@
+<div align="center">
+
 # Enterprise Agentic Vulnerability Triage and Automated Remediation System
 
-```text
-╔═══════════════════════════════════════════════════════════════════════════╗
-║   ██╗   ██╗██╗   ██╗██╗     ███╗   ██╗██╗ ██████╗███████╗                 ║
-║   ██║   ██║██║   ██║██║     ████╗  ██║██║██╔════╝██╔════╝                 ║
-║   ██║   ██║██║   ██║██║     ██╔██╗ ██║██║██║     ███████╗                 ║
-║   ╚██╗ ██╔╝██║   ██║██║     ██║╚██╗██║██║██║     ╚════██║                 ║
-║    ╚████╔╝ ╚██████╔╝███████╗██║ ╚████║██║╚██████╗███████║                 ║
-║     ╚═══╝   ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚═╝ ╚═════╝╚══════╝                 ║
-║                                                                           ║
-║   [ Autonomous Vulnerability Triage & Automated Patching Engine ]         ║
-║   AST Reachability | EPSS Threat Intel | Sandboxes | Self-Repair          ║
-╚═══════════════════════════════════════════════════════════════════════════╝
-```
+### **[ Autonomous Vulnerability Triage & Automated Patching Engine ]**
+*AST Reachability | EPSS Threat Intel | Sandboxes | Self-Repair*
+
+</div>
+
+---
 
 A local pipeline that filters unreachable CVEs via AST call-graphs, prioritizes vulnerabilities with live EPSS scores, drafts code fixes, and verifies them inside isolated environments before generating patches. Python/PyPI scope only.
 
