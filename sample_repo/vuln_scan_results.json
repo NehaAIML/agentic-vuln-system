@@ -1,0 +1,35 @@
+[
+  {
+    "id": "CVE-2020-14343",
+    "package": "PyYAML",
+    "ecosystem": "PyPI",
+    "installed_version": "5.3.1",
+    "fixed_version": "5.4",
+    "severity": "CRITICAL",
+    "summary": "PyYAML full_load method or yaml.load with a Loader can be exploited by malicious YAML input to execute arbitrary code.",
+    "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2020-14343",
+    "manifest_file": "requirements.txt"
+  },
+  {
+    "id": "CVE-2019-8341",
+    "package": "Jinja2",
+    "ecosystem": "PyPI",
+    "installed_version": "2.10.1",
+    "fixed_version": "2.10.3",
+    "severity": "HIGH",
+    "summary": "The from_string function in Jinja2 allows attackers to render arbitrary format strings which can lead to SSTI.",
+    "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2019-8341",
+    "manifest_file": "requirements.txt"
+  },
+  {
+    "id": "CVE-2023-32681",
+    "package": "requests",
+    "ecosystem": "PyPI",
+    "installed_version": "2.25.1",
+    "fixed_version": "2.31.0",
+    "severity": "MEDIUM",
+    "summary": "Requests leaks Proxy-Authorization header on redirect to same-origin URLs.",
+    "advisory_url": "https://nvd.nist.gov/vuln/detail/CVE-2023-32681",
+    "manifest_file": "requirements.txt"
+  }
+]

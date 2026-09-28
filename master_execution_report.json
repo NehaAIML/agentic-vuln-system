@@ -1,9 +1,0 @@
-[
-  {
-    "cve": "CVE-2026-1042",
-    "reachable": true,
-    "priority": "LOW_PRIORITY_BACKLOG",
-    "status": "ESCALATED_TO_HUMAN",
-    "sandbox": "Docker Ephemeral Container"
-  }
-]
