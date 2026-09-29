@@ -108,3 +108,46 @@ graph TD
 - **Cross-CVE coupling.** Batch mode stacks patches into one sandbox;
   an unrelated failing test can mask a legitimate fix. This is
   documented in the "Hard-Won Engineering Lessons" section above.
+
+## Dashboard
+
+A lightweight Streamlit app visualizes the pipeline's output artifacts
+from a completed run.
+
+### Prerequisites
+
+~~~bash
+pip install -r requirements-dashboard.txt
+~~~
+
+### Launch
+
+After running the pipeline, launch the dashboard against the same repo:
+
+~~~bash
+streamlit run dashboard/dashboard.py -- --repo-path sample_repo
+~~~
+
+The `--repo-path` argument tells the dashboard where to find the run
+artifacts. You can also set it interactively from the sidebar.
+
+### What it shows
+
+- Total CVEs detected
+- Reachable vs. filtered (dead-code noise reduction)
+- Successfully auto-patched count
+- Per-CVE attempt counts (from the self-repair loop)
+- Mean Time to Remediate (MTTR), derived from attempt durations
+  recorded by `sandbox/sandbox_runner.py`
+
+### Input files
+
+The dashboard reads these files from the target repo directory:
+
+| File | Written by | Contents |
+|------|-----------|----------|
+| `vuln_scan_results.json` | Step 1 (scan or `--mock`) | Raw normalized scan results |
+| `reachability_results.json` | Step 1 | Reachable vs. filtered CVEs |
+| `code_contexts.json` | Step 2 | AST context bundles |
+| `remediation_results.json` | Step 4 | Patch attempts + test outcomes |
+| `run_report.json` | Pipeline end | Structured run summary |
