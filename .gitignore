@@ -16,3 +16,4 @@ dist/
 # Local backups created by harden scripts
 *.bak
 *.toml.bak
+sample_repo/run_report.json

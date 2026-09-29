@@ -19,11 +19,52 @@ standalone (see README.md) for debugging or partial re-runs.
 import argparse
 import json
 import sys
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 from scanners import reachability, code_graph
 from sandbox import sandbox_runner
 from agent import pr_creator
+
+
+class RunReport:
+    """Collects timing + stage summaries for a single pipeline run."""
+
+    def __init__(self, repo_path: str, backend: str, model: str | None) -> None:
+        self.started_at = datetime.now(timezone.utc).isoformat()
+        self.t0 = time.monotonic()
+        self.data: dict = {
+            "started_at": self.started_at,
+            "repo_path": repo_path,
+            "backend": backend,
+            "model": model,
+            "stages": {},
+            "success": False,
+        }
+
+    def stage(self, name: str, **fields: object) -> None:
+        """Record a stage outcome. Adds elapsed seconds since run start."""
+        self.data["stages"][name] = {
+            "elapsed_seconds": round(time.monotonic() - self.t0, 3),
+            **fields,
+        }
+
+    def finish(self, success: bool) -> dict:
+        self.data["success"] = success
+        self.data["duration_seconds"] = round(time.monotonic() - self.t0, 3)
+        self.data["finished_at"] = datetime.now(timezone.utc).isoformat()
+        return self.data
+
+
+def _write_report(
+    report: "RunReport", repo_path: Path, report_path: str | None, success: bool
+) -> None:
+    """Write the JSON run report to disk and echo the path."""
+    payload = report.finish(success)
+    out = Path(report_path) if report_path else (repo_path / "run_report.json")
+    out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    print(f"\nRun report written to: {out}")
 
 
 def main():
@@ -46,9 +87,15 @@ def main():
         help="Actually push branch + open PR via `gh`. Default: local dry-run only.",
     )
     parser.add_argument("--base-branch", default="main")
+    parser.add_argument(
+        "--report",
+        default=None,
+        help="Path to write the JSON run report (default: <repo>/run_report.json)",
+    )
     args = parser.parse_args()
 
     repo_path = Path(args.repo_path)
+    report = RunReport(str(repo_path), args.backend, args.model)
 
     # ---------- Step 1 ----------
     print("=" * 70)
@@ -60,6 +107,12 @@ def main():
     print(f"Loaded {len(vulns)} raw vulnerability record(s) from {scan_results_path}")
 
     reach_result = reachability.filter_vulnerabilities(vulns, str(repo_path))
+    report.stage(
+        "reachability",
+        raw_vulns=len(vulns),
+        reachable=len(reach_result["reachable"]),
+        filtered=len(reach_result["filtered"]),
+    )
     print(f"Reachable (actionable): {len(reach_result['reachable'])}")
     print(f"Filtered (dead code):   {len(reach_result['filtered'])}")
     reach_out = repo_path / "reachability_results.json"
@@ -68,6 +121,7 @@ def main():
 
     if not reach_result["reachable"]:
         print("\nNo reachable/actionable vulnerabilities found. Nothing to patch. Exiting.")
+        _write_report(report, repo_path, args.report, success=True)
         return
 
     # ---------- Step 2 ----------
@@ -75,6 +129,7 @@ def main():
     print("STEP 2: Context-Aware Code Retrieval & AST Mapping")
     print("=" * 70)
     contexts = code_graph.build_contexts_for_reachable_vulns(str(repo_path), str(reach_out))
+    report.stage("contexts", bundles=len(contexts))
     print(f"Built {len(contexts)} context bundle(s)")
     contexts_out = repo_path / "code_contexts.json"
     with open(contexts_out, "w") as f:
@@ -96,6 +151,13 @@ def main():
         print(f"  {p['vuln_id']} ({p['package']}): applied={p['applied']}")
     print(f"Tests passed (full suite, all patches stacked): {batch_result['tests_passed']}")
     print(f"Batch remediation success: {batch_result['success']}")
+    report.stage(
+        "remediation",
+        patches_applied=sum(1 for p in batch_result["patches"] if p["applied"]),
+        total_patches=len(batch_result["patches"]),
+        tests_passed=batch_result["tests_passed"],
+        batch_success=batch_result["success"],
+    )
     remediation_out = repo_path / "remediation_results.json"
     with open(remediation_out, "w") as f:
         json.dump(batch_result, f, indent=2)
@@ -105,6 +167,7 @@ def main():
             "\nBatch remediation did not fully succeed — stopping before PR creation. "
             "See remediation_results.json for details (diffs + test output)."
         )
+        _write_report(report, repo_path, args.report, success=False)
         return
 
     # ---------- Step 5 ----------
@@ -118,7 +181,9 @@ def main():
         dry_run=not args.push_pr,
     )
     print(json.dumps({k: v for k, v in pr_result.items() if k != "body"}, indent=2))
+    report.stage("pr", dry_run=not args.push_pr, ok=bool(pr_result.get("ok", True)))
 
+    _write_report(report, repo_path, args.report, success=True)
     print("\nDone. Run the dashboard to view metrics:")
     print(f"  streamlit run dashboard/dashboard.py -- --repo-path {repo_path}")
 
