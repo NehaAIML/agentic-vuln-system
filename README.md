@@ -6,6 +6,9 @@ An agentic pipeline that filters dead-code CVEs via static AST analysis, priorit
 ## Performance Benchmarks
 ![Executive Dashboard](docs/benchmarks/executive_dashboard.png)
 
+## Performance Profiling
+![Profiling Analysis](docs/benchmarks/profiling_featured.png)
+
 ## Key Achievements
 | Metric | Result | Business Impact |
 | :--- | :--- | :--- |
