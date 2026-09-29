@@ -1,0 +1,263 @@
+{
+  "target": "sambitsahugithub/Vulnerability-Management",
+  "generated_by": "manual import-scan of the 8 .py source files",
+  "notes": [
+    "DIRECT = package is explicitly imported in source",
+    "TRANSITIVE = package is imported by an explicitly-imported package (e.g. Jinja2 via Flask)",
+    "dead = package is in requirements.txt but never imported anywhere",
+    "README/requirements.txt version mismatch documented in benchmarks/README.md"
+  ],
+  "counts": {
+    "total": 35,
+    "direct": 19,
+    "transitive": 4,
+    "dead": 12
+  },
+  "packages": {
+    "PyYAML": {
+      "cve": "CVE-2017-18342",
+      "cvss": 9.8,
+      "version": "3.13",
+      "status": "DIRECT",
+      "evidence": "app.py:15"
+    },
+    "Django": {
+      "cve": "CVE-2019-19844",
+      "cvss": 9.8,
+      "version": "2.0.1",
+      "status": "dead",
+      "evidence": ""
+    },
+    "paramiko": {
+      "cve": "CVE-2018-1000805",
+      "cvss": 9.8,
+      "version": "2.4.0",
+      "status": "DIRECT",
+      "evidence": "crypto_utils.py:8"
+    },
+    "Werkzeug": {
+      "cve": "CVE-2023-25577",
+      "cvss": 9.8,
+      "version": "0.9.6",
+      "status": "TRANSITIVE",
+      "evidence": "via Flask (app.py:13)"
+    },
+    "pyarrow": {
+      "cve": "CVE-2023-47248",
+      "cvss": 9.8,
+      "version": "0.14.0",
+      "status": "dead",
+      "evidence": ""
+    },
+    "Twisted": {
+      "cve": "CVE-2022-21712",
+      "cvss": 9.8,
+      "version": "18.7.0",
+      "status": "dead",
+      "evidence": ""
+    },
+    "PyMongo": {
+      "cve": "CVE-2021-30533",
+      "cvss": 9.8,
+      "version": "3.9.0",
+      "status": "DIRECT",
+      "evidence": "auth_utils.py:23"
+    },
+    "pydantic": {
+      "cve": "CVE-2021-29510",
+      "cvss": 9.8,
+      "version": "1.0.0",
+      "status": "DIRECT",
+      "evidence": "auth_utils.py:27"
+    },
+    "cryptography": {
+      "cve": "CVE-2020-36242",
+      "cvss": 9.1,
+      "version": "2.1.4",
+      "status": "DIRECT",
+      "evidence": "app.py:19"
+    },
+    "python-jwt": {
+      "cve": "CVE-2022-39227",
+      "cvss": 9.1,
+      "version": "2.4.0",
+      "status": "DIRECT",
+      "evidence": "auth_utils.py:19"
+    },
+    "python-jose": {
+      "cve": "CVE-2024-33663",
+      "cvss": 8.8,
+      "version": "3.1.0",
+      "status": "DIRECT",
+      "evidence": "auth_utils.py:31"
+    },
+    "Jinja2": {
+      "cve": "CVE-2019-10906",
+      "cvss": 8.1,
+      "version": "2.10",
+      "status": "TRANSITIVE",
+      "evidence": "via Flask (app.py:13)"
+    },
+    "lxml": {
+      "cve": "CVE-2021-43818",
+      "cvss": 8.1,
+      "version": "4.1.1",
+      "status": "DIRECT",
+      "evidence": "image_utils.py:9"
+    },
+    "urllib3": {
+      "cve": "CVE-2019-11324",
+      "cvss": 7.5,
+      "version": "1.22",
+      "status": "DIRECT",
+      "evidence": "app.py:17"
+    },
+    "aiohttp": {
+      "cve": "CVE-2023-49081",
+      "cvss": 7.5,
+      "version": "2.3.10",
+      "status": "dead",
+      "evidence": ""
+    },
+    "httpx": {
+      "cve": "CVE-2021-41945",
+      "cvss": 7.5,
+      "version": "0.13.0",
+      "status": "dead",
+      "evidence": ""
+    },
+    "Scrapy": {
+      "cve": "CVE-2021-41125",
+      "cvss": 7.5,
+      "version": "1.5.0",
+      "status": "dead",
+      "evidence": ""
+    },
+    "pycparser": {
+      "cve": "CVE-2019-14433",
+      "cvss": 7.5,
+      "version": "2.14",
+      "status": "dead",
+      "evidence": ""
+    },
+    "defusedxml": {
+      "cve": "CVE-2019-20907",
+      "cvss": 7.5,
+      "version": "0.5.0",
+      "status": "DIRECT",
+      "evidence": "auth_utils.py:35"
+    },
+    "pysaml2": {
+      "cve": "CVE-2021-21238",
+      "cvss": 7.5,
+      "version": "4.5.0",
+      "status": "DIRECT",
+      "evidence": "auth_utils.py:38"
+    },
+    "Pillow": {
+      "cve": "CVE-2020-10177",
+      "cvss": 7.1,
+      "version": "5.4.1",
+      "status": "DIRECT",
+      "evidence": "image_utils.py:8"
+    },
+    "requests": {
+      "cve": "CVE-2018-18074",
+      "cvss": 6.5,
+      "version": "2.18.0",
+      "status": "DIRECT",
+      "evidence": "app.py:16"
+    },
+    "Flask": {
+      "cve": "CVE-2018-1000656",
+      "cvss": 5.0,
+      "version": "0.12.4",
+      "status": "DIRECT",
+      "evidence": "app.py:13"
+    },
+    "celery": {
+      "cve": "CVE-2021-23727",
+      "cvss": 6.5,
+      "version": "4.1.0",
+      "status": "DIRECT",
+      "evidence": "cache_utils.py:9"
+    },
+    "redis": {
+      "cve": "CVE-2023-28859",
+      "cvss": 6.5,
+      "version": "2.10.6",
+      "status": "DIRECT",
+      "evidence": "cache_utils.py:8"
+    },
+    "boto3": {
+      "cve": "CVE-2018-15869",
+      "cvss": 6.5,
+      "version": "1.9.0",
+      "status": "dead",
+      "evidence": ""
+    },
+    "psutil": {
+      "cve": "CVE-2019-18874",
+      "cvss": 6.5,
+      "version": "5.4.0",
+      "status": "dead",
+      "evidence": ""
+    },
+    "pandas": {
+      "cve": "CVE-2023-29665",
+      "cvss": 6.2,
+      "version": "0.23.0",
+      "status": "dead",
+      "evidence": ""
+    },
+    "numpy": {
+      "cve": "CVE-2021-33430",
+      "cvss": 5.3,
+      "version": "1.16.0",
+      "status": "dead",
+      "evidence": ""
+    },
+    "MarkupSafe": {
+      "cve": "CVE-2011-4592",
+      "cvss": 2.6,
+      "version": "1.0",
+      "status": "DIRECT",
+      "evidence": "app.py:14"
+    },
+    "pyOpenSSL": {
+      "cve": "CVE-2018-1000807",
+      "cvss": 3.7,
+      "version": "17.5.0",
+      "status": "DIRECT",
+      "evidence": "db_utils.py:13"
+    },
+    "SQLAlchemy": {
+      "cve": "CVE-2019-7548",
+      "cvss": 3.1,
+      "version": "1.2.0",
+      "status": "DIRECT",
+      "evidence": "db_utils.py:11"
+    },
+    "certifi": {
+      "cve": "CVE-2023-37920",
+      "cvss": 3.7,
+      "version": "2019.3.9",
+      "status": "TRANSITIVE",
+      "evidence": "via requests (app.py:16)"
+    },
+    "idna": {
+      "cve": "CVE-2024-3651",
+      "cvss": 3.3,
+      "version": "2.6",
+      "status": "TRANSITIVE",
+      "evidence": "via requests (app.py:16)"
+    },
+    "six": {
+      "cve": "CVE-2021-33503",
+      "cvss": 2.6,
+      "version": "1.11.0",
+      "status": "dead",
+      "evidence": ""
+    }
+  }
+}

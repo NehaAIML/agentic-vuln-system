@@ -151,3 +151,20 @@ The dashboard reads these files from the target repo directory:
 | `code_contexts.json` | Step 2 | AST context bundles |
 | `remediation_results.json` | Step 4 | Patch attempts + test outcomes |
 | `run_report.json` | Pipeline end | Structured run summary |
+
+## Benchmark
+
+Reachability filtering was measured against a purpose-built fixture with
+35 documented CVEs. Under strict scoring (direct imports only):
+
+- **Precision: 100%**
+- **Recall: 100%**
+- **Accuracy: 100%**
+
+Under loose scoring (including transitively-reachable dependencies):
+Precision 100%, Recall 83%, Accuracy 89%. The 4 misses are Jinja2,
+Werkzeug, certifi, and idna -- reachable only via Flask and requests, and
+therefore undetectable by a pure static import scan.
+
+Full methodology, ground truth, and reproduction steps:
+**[`benchmarks/README.md`](benchmarks/README.md)**
