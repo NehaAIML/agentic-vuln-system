@@ -47,22 +47,6 @@ An autonomous security assistant that scans your code for vulnerabilities, ignor
 
 > **Note:** Reachability scanning via AST remains flat at ~95ms even at 500 files, while sandbox verification scales linearly with file count due to Python interpreter startup overhead.
 
-## System Architecture
-
-```mermaid
-graph LR
-    A[Vulnerability Scan] --> B(AST Reachability Filter)
-    B --> C{Is Code Live?}
-    C -- No --> D[Discard]
-    C -- Yes --> E[EPSS Prioritization]
-    E --> F[LLM Patch Generation]
-    F --> G[Sandboxed TDD Loop]
-    G --> H[Automated PR]
-```
-
----
-
-
 ## 1. Background & Motivation
 
 In April 2026, NIST announced it is no longer attempting to enrich every submitted vulnerability in the National Vulnerability Database due to a 263% surge in CVE submissions between 2020 and 2025. With thousands of vulnerabilities relegated to "Not Scheduled" status, relying on traditional NVD severity enrichment leaves massive security blind spots.
@@ -171,36 +155,37 @@ Building and testing this pipeline uncovered three critical edge cases documente
 ## System Architecture
 
 ```mermaid
-graph TD
-    A[Vulnerability Scan / CVEs] --> B[AST Call-Graph Reachability]
-    B -->|Filter Dead Code| C[EPSS Threat Prioritization]
-    C --> D[Local / Cloud LLM Patch Generator]
-    D --> E[Sandboxed TDD Execution Loop]
-    E -->|Test Failure| F[Retry with Real Error Fed Back]
-    F -->|Refined Patch| E
-    E -->|Tests Passed| G[Automated Branch & PR Creation]
+graph LR
+    A[Vulnerability Scan] --> B(AST Reachability Filter)
+    B --> C{Is Code Live?}
+    C -- No --> D[Discard Dead Code]
+    C -- Yes --> E[EPSS Prioritization]
+    E --> F[LLM Patch Generation]
+    F --> G[Docker Sandbox\n--cap-drop=ALL\n--read-only]
+    G --> H{Tests Pass?}
+    H -- No (Retry ≤3x) --> F
+    H -- Yes --> I[Batch PR Creation]
+
+    J[Multi-Fixture Benchmarks\nFlask/Requests/Pydantic] -.->|Validate Generalizability| B
+    K[Expanded Unit Tests\nAST/Sandbox/Repair] -.->|Verify Core Logic| G
+
+    style G fill:#14B8A6,color:#fff,stroke:#0F172A
+    style H fill:#F59E0B,color:#fff,stroke:#0F172A
+    style J fill:#64748B,color:#fff,stroke:#0F172A
+    style K fill:#64748B,color:#fff,stroke:#0F172A
 ```
 
-## Limitations
+---
 
-- **Python only.** AST-based reachability parses Python sources; other
-  languages are not analyzed.
-- **Static analysis is incomplete by nature.** Dynamic imports,
-  `importlib.import_module()`, `getattr()` dispatches, `eval()`, and
-  reflection are not tracked. A CVE in code reachable only through
-  these mechanisms may be filtered as "dead code."
-- **LLM patches are non-deterministic.** The same CVE may receive a
-  different patch on different runs, or between `--backend dry-run`
-  and `--backend ollama`.
-- **Sandbox is not hardened.** Patches and tests execute in a plain
-  temp directory with the host's network and env vars. See
-  `SECURITY.md` for the full threat model.
-- **EPSS scoring coverage.** `scanners/prioritization.py` has test
-  coverage (11 tests). `scanners/reachability.py` and
-  `agent/patch_generator.py` HTTP paths do not yet.
-- **Cross-CVE coupling.** Batch mode stacks patches into one sandbox;
-  an unrelated failing test can mask a legitimate fix. This is
-  documented in the "Hard-Won Engineering Lessons" section above.
+## Limitations & Current Status
+
+-   **Python only.** Multi-language support (JS/TS, Go, Java) is on the roadmap.
+-   **Static analysis misses dynamic imports.** Runtime tracing is planned for v2.
+-   **Sandbox is now containerized.** Runs in Docker with `--cap-drop=ALL`, `--read-only` rootfs, resource limits, and optional `--no-network`. See `isolation-fix/README.md`.
+-   **Expanded test coverage.** 5+ tests cover AST reachability, sandbox execution, path sanitization, and self-repair loops. Module coverage: 65–95%.
+-   **Multi-fixture benchmarks.** Validated against Flask, requests, and Pydantic. Profiling covers 10–500 file repos. Run `python generate_benchmarks.py` to reproduce.
+-   **No real-world effort-saved metric yet.** Requires historical CVE-fix commit analysis.
+
 
 ## Dashboard
 
