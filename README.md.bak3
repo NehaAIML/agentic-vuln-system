@@ -156,23 +156,24 @@ graph TD
 
 ## Limitations
 
-- **Python only.** Reachability analysis runs on Python source. CVEs in
-  non-Python dependencies of a Python project are surfaced, not filtered.
-- **Static analysis misses dynamic code.** `importlib.import_module()`,
-  `__import__`, `getattr()` dispatch, and `eval()` are not tracked. A CVE
-  reachable only through these mechanisms may be filtered as dead code.
-  *Mitigation:* the benchmark (`benchmarks/README.md`) is a regression
-  test for this class of failure; any new false filter reduces recall.
-- **Sandbox is not a security boundary.** Patches and tests run in a
-  plain temp directory with the host's network and environment inherited.
-  Do not run against untrusted repos with production credentials present.
-  *Mitigation:* documented in `SECURITY.md`; wrap in a container for
-  untrusted input.
-- **Cross-CVE test coupling.** Batch mode stacks patches in one sandbox;
-  an unrelated failing test can mask a legitimate fix. *Mitigation:*
-  single-CVE mode is available; the coupling is documented in
-  "Hard-Won Engineering Lessons" above.
-
+- **Python only.** AST-based reachability parses Python sources; other
+  languages are not analyzed.
+- **Static analysis is incomplete by nature.** Dynamic imports,
+  `importlib.import_module()`, `getattr()` dispatches, `eval()`, and
+  reflection are not tracked. A CVE in code reachable only through
+  these mechanisms may be filtered as "dead code."
+- **LLM patches are non-deterministic.** The same CVE may receive a
+  different patch on different runs, or between `--backend dry-run`
+  and `--backend ollama`.
+- **Sandbox is not hardened.** Patches and tests execute in a plain
+  temp directory with the host's network and env vars. See
+  `SECURITY.md` for the full threat model.
+- **EPSS scoring coverage.** `scanners/prioritization.py` has test
+  coverage (11 tests). `scanners/reachability.py` and
+  `agent/patch_generator.py` HTTP paths do not yet.
+- **Cross-CVE coupling.** Batch mode stacks patches into one sandbox;
+  an unrelated failing test can mask a legitimate fix. This is
+  documented in the "Hard-Won Engineering Lessons" section above.
 
 ## Dashboard
 
