@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentic-vuln-system"
+version = "0.1.0"
+description = "Agentic pipeline that filters dead-code vulnerabilities, prioritizes real-world threats, and tests AI-generated patches in isolated sandboxes."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "NehaAIML" }]
+dependencies = [
+    "requests",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "responses",
+    "ruff",
+    "black",
+    "mypy",
+    "pre-commit",
+]
+
+[project.scripts]
+vuln-triage = "run_pipeline:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
