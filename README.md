@@ -1,5 +1,7 @@
 # Enterprise Agentic Vulnerability Triage and Automated Remediation System
 
+[![Tests](https://img.shields.io/badge/tests-11%20passing-brightgreen)](#tests)
+
 An autonomous security assistant that scans your code for vulnerabilities, ignores false alarms where the vulnerable code isn't actually used, generates AI-powered fixes, and tests them safely in an isolated sandbox before creating a pull request.
 
 <div align="center">
@@ -168,3 +170,16 @@ therefore undetectable by a pure static import scan.
 
 Full methodology, ground truth, and reproduction steps:
 **[`benchmarks/README.md`](benchmarks/README.md)**
+
+## Tests
+
+Run the test suite:
+
+    pytest -v
+
+**11 tests** currently cover `scanners/prioritization.py` (EPSS scoring
+and priority decision), using `responses` to mock the FIRST.org API.
+No live network calls.
+
+Reachability filter accuracy is benchmarked separately — see
+[`benchmarks/README.md`](benchmarks/README.md).
