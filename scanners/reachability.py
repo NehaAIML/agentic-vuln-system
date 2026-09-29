@@ -17,12 +17,13 @@ This is a heuristic, not a full call-graph/taint analysis -- it deliberately
 errs toward "reachable" (false negatives on filtering) rather than silently
 hiding a real vuln. It's a fast triage pass, not a formal proof.
 """
+
 import ast
 import json
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Set
 
 
 @dataclass
@@ -65,11 +66,13 @@ def find_reachable_packages(repo_path: str, package_names: List[str]) -> List[Re
     results = []
     for pkg in package_names:
         usages = all_usages.get(pkg, [])
-        results.append(ReachabilityResult(
-            package=pkg,
-            reachable=len(usages) > 0,
-            usages=usages,
-        ))
+        results.append(
+            ReachabilityResult(
+                package=pkg,
+                reachable=len(usages) > 0,
+                usages=usages,
+            )
+        )
     return results
 
 
@@ -122,7 +125,7 @@ def analyze_file(path: Path, target_packages: Set[str]) -> Dict[str, List[Usage]
             self.generic_visit(node)
 
         def visit_Attribute(self, node: ast.Attribute):
-            root = node
+            root: ast.expr = node
             while isinstance(root, ast.Attribute):
                 root = root.value
             if isinstance(root, ast.Name):
@@ -147,12 +150,14 @@ def analyze_file(path: Path, target_packages: Set[str]) -> Dict[str, List[Usage]
 
     source_lines = source.splitlines(keepends=True)
     for top, lineno, func_name in usages_with_module:
-        findings[top].append(Usage(
-            file=str(path),
-            line=lineno,
-            function=func_name,
-            code_snippet=_extract_snippet(source_lines, lineno),
-        ))
+        findings[top].append(
+            Usage(
+                file=str(path),
+                line=lineno,
+                function=func_name,
+                code_snippet=_extract_snippet(source_lines, lineno),
+            )
+        )
     return findings
 
 
@@ -232,8 +237,10 @@ def main():
     for v in result["reachable"]:
         usages = v.get("_reachability", {}).get("usages", [])
         loc = usages[0] if usages else {}
-        print(f"  - {v['id']} ({v['package']}) used at "
-              f"{loc.get('file', '?')}:{loc.get('line', '?')} in {loc.get('function', '?')}()")
+        print(
+            f"  - {v['id']} ({v['package']}) used at "
+            f"{loc.get('file', '?')}:{loc.get('line', '?')} in {loc.get('function', '?')}()"
+        )
 
     print(f"\nFiltered (dead code, safe to deprioritize): {len(result['filtered'])}")
     for v in result["filtered"]:

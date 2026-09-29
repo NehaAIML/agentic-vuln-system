@@ -19,6 +19,7 @@ Normalized record shape:
     "manifest_file": "requirements.txt"
 }
 """
+
 import json
 import shutil
 import subprocess
@@ -38,7 +39,7 @@ def scan_with_osv(repo_path: str) -> Dict[str, Any]:
     """Run osv-scanner against a repo directory and return raw JSON dict."""
     if shutil.which("osv-scanner") is None:
         raise FileNotFoundError("osv-scanner binary not found on PATH")
-    cmd = ["osv-scanner", "--json", f"--recursive", repo_path]
+    cmd = ["osv-scanner", "--json", "--recursive", repo_path]
     raw = _run(cmd)
     return json.loads(raw)
 
@@ -62,17 +63,19 @@ def normalize_osv(raw: Dict[str, Any]) -> List[Dict[str, Any]]:
                 if vuln.get("severity"):
                     severity = vuln["severity"][0].get("score", "UNKNOWN")
 
-                normalized.append({
-                    "id": vuln.get("id"),
-                    "package": pkg.get("name"),
-                    "ecosystem": pkg.get("ecosystem"),
-                    "installed_version": pkg.get("version"),
-                    "fixed_version": fixed_version,
-                    "severity": severity,
-                    "summary": vuln.get("summary", ""),
-                    "advisory_url": (vuln.get("references") or [{}])[0].get("url", ""),
-                    "manifest_file": source,
-                })
+                normalized.append(
+                    {
+                        "id": vuln.get("id"),
+                        "package": pkg.get("name"),
+                        "ecosystem": pkg.get("ecosystem"),
+                        "installed_version": pkg.get("version"),
+                        "fixed_version": fixed_version,
+                        "severity": severity,
+                        "summary": vuln.get("summary", ""),
+                        "advisory_url": (vuln.get("references") or [{}])[0].get("url", ""),
+                        "manifest_file": source,
+                    }
+                )
     return normalized
 
 
@@ -112,8 +115,10 @@ def main():
 
     print(f"Found {len(vulns)} vulnerabilities. Written to {out_path}")
     for v in vulns:
-        print(f"  - {v['id']}: {v['package']}=={v['installed_version']} "
-              f"(fix: {v['fixed_version']}) [{v['severity']}]")
+        print(
+            f"  - {v['id']}: {v['package']}=={v['installed_version']} "
+            f"(fix: {v['fixed_version']}) [{v['severity']}]"
+        )
 
 
 if __name__ == "__main__":

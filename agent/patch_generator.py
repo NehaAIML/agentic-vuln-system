@@ -17,9 +17,9 @@ The prompt enforces strict output constraints and the response is
 sanitized to strip markdown fences / commentary the model may add despite
 instructions.
 """
+
 import difflib
 import json
-import sys
 import urllib.request
 import urllib.error
 from dataclasses import dataclass
@@ -121,16 +121,22 @@ class PatchResult:
     model: str
 
 
-def call_ollama(system_prompt: str, user_prompt: str, model: str = "deepseek-coder-v2",
-                 host: str = "http://localhost:11434") -> str:
-    payload = json.dumps({
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        "stream": False,
-    }).encode("utf-8")
+def call_ollama(
+    system_prompt: str,
+    user_prompt: str,
+    model: str = "deepseek-coder-v2",
+    host: str = "http://localhost:11434",
+) -> str:
+    payload = json.dumps(
+        {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "stream": False,
+        }
+    ).encode("utf-8")
 
     req = urllib.request.Request(
         f"{host}/api/chat", data=payload, headers={"Content-Type": "application/json"}
@@ -145,16 +151,19 @@ def call_ollama(system_prompt: str, user_prompt: str, model: str = "deepseek-cod
         )
 
 
-def call_groq(system_prompt: str, user_prompt: str, api_key: str,
-              model: str = "llama-3.1-70b-versatile") -> str:
-    payload = json.dumps({
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        "temperature": 0.1,
-    }).encode("utf-8")
+def call_groq(
+    system_prompt: str, user_prompt: str, api_key: str, model: str = "llama-3.1-70b-versatile"
+) -> str:
+    payload = json.dumps(
+        {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "temperature": 0.1,
+        }
+    ).encode("utf-8")
 
     req = urllib.request.Request(
         "https://api.groq.com/openai/v1/chat/completions",
@@ -169,7 +178,9 @@ def call_groq(system_prompt: str, user_prompt: str, api_key: str,
         return data["choices"][0]["message"]["content"]
 
 
-def call_dry_run(vuln: Dict[str, Any], context: Dict[str, Any], repo_root: Optional[str] = None) -> str:
+def call_dry_run(
+    vuln: Dict[str, Any], context: Dict[str, Any], repo_root: Optional[str] = None
+) -> str:
     """
     Deterministic patch logic for offline development/testing of the
     pipeline (Step 4 onward) without needing a live model. Rather than
@@ -200,20 +211,18 @@ def call_dry_run(vuln: Dict[str, Any], context: Dict[str, Any], repo_root: Optio
     else:
         # No fix template for this package in dry-run mode; return a no-op
         # diff so the pipeline still runs end-to-end for unknown packages.
-        return (
-            f"diff --git a/{rel_file} b/{rel_file}\n"
-            f"index 0000000..0000000 100644\n"
-        )
+        return f"diff --git a/{rel_file} b/{rel_file}\n" f"index 0000000..0000000 100644\n"
 
-    diff_lines = list(difflib.unified_diff(
-        original_lines, new_lines,
-        fromfile=f"a/{rel_file}", tofile=f"b/{rel_file}",
-    ))
-    if not diff_lines:
-        return (
-            f"diff --git a/{rel_file} b/{rel_file}\n"
-            f"index 0000000..0000000 100644\n"
+    diff_lines = list(
+        difflib.unified_diff(
+            original_lines,
+            new_lines,
+            fromfile=f"a/{rel_file}",
+            tofile=f"b/{rel_file}",
         )
+    )
+    if not diff_lines:
+        return f"diff --git a/{rel_file} b/{rel_file}\n" f"index 0000000..0000000 100644\n"
 
     header = f"diff --git a/{rel_file} b/{rel_file}\nindex 0000000..1111111 100644\n"
     # original_lines/new_lines were read with keepends=True, so each content
@@ -227,12 +236,16 @@ def call_dry_run(vuln: Dict[str, Any], context: Dict[str, Any], repo_root: Optio
     return header + body
 
 
-def generate_patch(vuln: Dict[str, Any], context: Dict[str, Any],
-                    backend: str = "dry-run", model: Optional[str] = None,
-                    api_key: Optional[str] = None,
-                    prior_error: Optional[str] = None,
-                    prior_diff: Optional[str] = None,
-                    repo_root: Optional[str] = None) -> PatchResult:
+def generate_patch(
+    vuln: Dict[str, Any],
+    context: Dict[str, Any],
+    backend: str = "dry-run",
+    model: Optional[str] = None,
+    api_key: Optional[str] = None,
+    prior_error: Optional[str] = None,
+    prior_diff: Optional[str] = None,
+    repo_root: Optional[str] = None,
+) -> PatchResult:
     """
     Generate a patch. If prior_error/prior_diff are given, this is a
     self-repair iteration (Step 4 feeds failures back in here).
@@ -276,15 +289,21 @@ corrected unified diff.
 
 def main():
     import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument("code_contexts_json")
-    parser.add_argument("--repo-root", default=".",
-                         help="Repo root, needed for dry-run to read real file contents")
+    parser.add_argument(
+        "--repo-root", default=".", help="Repo root, needed for dry-run to read real file contents"
+    )
     parser.add_argument("--backend", default="dry-run", choices=["dry-run", "ollama", "groq"])
     parser.add_argument("--model", default=None)
     parser.add_argument("--api-key", default=None)
-    parser.add_argument("--index", type=int, default=None,
-                         help="Only patch the Nth context (0-indexed); default: all")
+    parser.add_argument(
+        "--index",
+        type=int,
+        default=None,
+        help="Only patch the Nth context (0-indexed); default: all",
+    )
     args = parser.parse_args()
 
     with open(args.code_contexts_json) as f:
@@ -296,9 +315,17 @@ def main():
     results = []
     for c in contexts:
         vuln, ctx = c["vuln"], c["context"]
-        print(f"Generating patch for {vuln['id']} ({vuln['package']}) using backend={args.backend}...")
-        result = generate_patch(vuln, ctx, backend=args.backend, model=args.model,
-                                 api_key=args.api_key, repo_root=args.repo_root)
+        print(
+            f"Generating patch for {vuln['id']} ({vuln['package']}) using backend={args.backend}..."
+        )
+        result = generate_patch(
+            vuln,
+            ctx,
+            backend=args.backend,
+            model=args.model,
+            api_key=args.api_key,
+            repo_root=args.repo_root,
+        )
         print(result.diff)
         print("-" * 60)
         results.append({"vuln_id": vuln["id"], "package": vuln["package"], "diff": result.diff})

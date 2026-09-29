@@ -4,6 +4,7 @@ codebase (simulating a transitive dependency that's installed but dead code).
 A naive scanner would flag jinja2's CVE here; reachability analysis should
 filter it out.
 """
+
 import jinja2  # noqa: F401
 
 

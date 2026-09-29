@@ -15,11 +15,10 @@ actually matter for trusting this system:
 These use a monkeypatched `generate_patch` so the tests are deterministic
 and don't depend on any real LLM.
 """
-import subprocess
+
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -41,11 +40,17 @@ BROKEN_FIX_SEMANTICS = "def add(a, b):\n    return a - b  # oops, wrong operator
 
 def make_diff(old_text: str, new_text: str, relpath: str = "app.py") -> str:
     import difflib
+
     old_lines = old_text.splitlines(keepends=True)
     new_lines = new_text.splitlines(keepends=True)
-    diff_lines = list(difflib.unified_diff(
-        old_lines, new_lines, fromfile=f"a/{relpath}", tofile=f"b/{relpath}",
-    ))
+    diff_lines = list(
+        difflib.unified_diff(
+            old_lines,
+            new_lines,
+            fromfile=f"a/{relpath}",
+            tofile=f"b/{relpath}",
+        )
+    )
     return f"diff --git a/{relpath} b/{relpath}\nindex 000..111 100644\n" + "".join(diff_lines)
 
 
@@ -60,8 +65,12 @@ def tmp_repo():
 
 @pytest.fixture
 def dummy_vuln_and_context():
-    return {"id": "CVE-FAKE", "package": "fake-pkg", "installed_version": "1.0",
-            "fixed_version": "1.1"}, {"file": "app.py"}
+    return {
+        "id": "CVE-FAKE",
+        "package": "fake-pkg",
+        "installed_version": "1.0",
+        "fixed_version": "1.1",
+    }, {"file": "app.py"}
 
 
 def _patch_result(diff_text):
@@ -70,10 +79,15 @@ def _patch_result(diff_text):
 
 def test_working_patch_succeeds_on_first_attempt(tmp_repo, dummy_vuln_and_context, monkeypatch):
     vuln, context = dummy_vuln_and_context
-    monkeypatch.setattr(sandbox_runner, "generate_patch",
-                         lambda *a, **k: _patch_result(make_diff(ORIGINAL_APP, GOOD_FIX)))
+    monkeypatch.setattr(
+        sandbox_runner,
+        "generate_patch",
+        lambda *a, **k: _patch_result(make_diff(ORIGINAL_APP, GOOD_FIX)),
+    )
 
-    result = sandbox_runner.remediate(str(tmp_repo), vuln, context, backend="dry-run", max_attempts=3)
+    result = sandbox_runner.remediate(
+        str(tmp_repo), vuln, context, backend="dry-run", max_attempts=3
+    )
 
     assert result.success is True
     assert len(result.attempts) == 1
@@ -81,7 +95,9 @@ def test_working_patch_succeeds_on_first_attempt(tmp_repo, dummy_vuln_and_contex
     assert result.attempts[0].tests_passed is True
 
 
-def test_broken_patch_that_fails_tests_is_rejected_and_retried(tmp_repo, dummy_vuln_and_context, monkeypatch):
+def test_broken_patch_that_fails_tests_is_rejected_and_retried(
+    tmp_repo, dummy_vuln_and_context, monkeypatch
+):
     """A patch that applies cleanly but breaks the test suite must not be
     accepted -- it should trigger a retry with the test failure fed back."""
     vuln, context = dummy_vuln_and_context
@@ -93,7 +109,9 @@ def test_broken_patch_that_fails_tests_is_rejected_and_retried(tmp_repo, dummy_v
 
     monkeypatch.setattr(sandbox_runner, "generate_patch", fake_generate)
 
-    result = sandbox_runner.remediate(str(tmp_repo), vuln, context, backend="dry-run", max_attempts=3)
+    result = sandbox_runner.remediate(
+        str(tmp_repo), vuln, context, backend="dry-run", max_attempts=3
+    )
 
     assert result.success is False
     assert len(result.attempts) == 3  # exhausted all attempts
@@ -105,7 +123,9 @@ def test_broken_patch_that_fails_tests_is_rejected_and_retried(tmp_repo, dummy_v
     assert "test" in call_log[1].lower() or "fail" in call_log[1].lower()
 
 
-def test_self_repair_loop_recovers_after_initial_failure(tmp_repo, dummy_vuln_and_context, monkeypatch):
+def test_self_repair_loop_recovers_after_initial_failure(
+    tmp_repo, dummy_vuln_and_context, monkeypatch
+):
     """Simulates a realistic self-repair: attempt 1 is broken, attempt 2 is
     the corrected fix. The loop must accept attempt 2 and stop (not burn
     the 3rd attempt), proving prior_error actually influences the next try
@@ -121,7 +141,9 @@ def test_self_repair_loop_recovers_after_initial_failure(tmp_repo, dummy_vuln_an
 
     monkeypatch.setattr(sandbox_runner, "generate_patch", fake_generate)
 
-    result = sandbox_runner.remediate(str(tmp_repo), vuln, context, backend="dry-run", max_attempts=3)
+    result = sandbox_runner.remediate(
+        str(tmp_repo), vuln, context, backend="dry-run", max_attempts=3
+    )
 
     assert result.success is True
     assert len(result.attempts) == 2  # stopped as soon as attempt 2 passed
@@ -129,7 +151,9 @@ def test_self_repair_loop_recovers_after_initial_failure(tmp_repo, dummy_vuln_an
     assert result.attempts[1].tests_passed is True
 
 
-def test_patch_that_fails_to_apply_is_retried_with_apply_error(tmp_repo, dummy_vuln_and_context, monkeypatch):
+def test_patch_that_fails_to_apply_is_retried_with_apply_error(
+    tmp_repo, dummy_vuln_and_context, monkeypatch
+):
     vuln, context = dummy_vuln_and_context
     call_log = []
 
@@ -139,7 +163,9 @@ def test_patch_that_fails_to_apply_is_retried_with_apply_error(tmp_repo, dummy_v
 
     monkeypatch.setattr(sandbox_runner, "generate_patch", fake_generate)
 
-    result = sandbox_runner.remediate(str(tmp_repo), vuln, context, backend="dry-run", max_attempts=2)
+    result = sandbox_runner.remediate(
+        str(tmp_repo), vuln, context, backend="dry-run", max_attempts=2
+    )
 
     assert result.success is False
     assert len(result.attempts) == 2
@@ -150,8 +176,11 @@ def test_patch_that_fails_to_apply_is_retried_with_apply_error(tmp_repo, dummy_v
 
 def test_original_repo_is_never_modified(tmp_repo, dummy_vuln_and_context, monkeypatch):
     vuln, context = dummy_vuln_and_context
-    monkeypatch.setattr(sandbox_runner, "generate_patch",
-                         lambda *a, **k: _patch_result(make_diff(ORIGINAL_APP, GOOD_FIX)))
+    monkeypatch.setattr(
+        sandbox_runner,
+        "generate_patch",
+        lambda *a, **k: _patch_result(make_diff(ORIGINAL_APP, GOOD_FIX)),
+    )
 
     original_content_before = (tmp_repo / "app.py").read_text()
     sandbox_runner.remediate(str(tmp_repo), vuln, context, backend="dry-run", max_attempts=3)

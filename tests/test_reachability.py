@@ -6,7 +6,7 @@ piece of correctness in the whole pipeline: a false "unreachable" verdict
 means a real vulnerability gets silently deprioritized, and a false
 "reachable" verdict wastes an LLM call + sandbox run on dead code.
 """
-import json
+
 import sys
 import tempfile
 from pathlib import Path
@@ -15,7 +15,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from scanners.reachability import (
-    find_reachable_packages, filter_vulnerabilities, resolve_import_name
+    find_reachable_packages,
+    filter_vulnerabilities,
+    resolve_import_name,
 )
 
 
@@ -59,7 +61,11 @@ def test_from_import_is_resolved(tmp_repo):
 
 
 def test_usage_in_nested_function_records_correct_function_name(tmp_repo):
-    write(tmp_repo, "app.py", "import yaml\n\ndef outer():\n    def inner():\n        yaml.load('x')\n    inner()\n")
+    write(
+        tmp_repo,
+        "app.py",
+        "import yaml\n\ndef outer():\n    def inner():\n        yaml.load('x')\n    inner()\n",
+    )
     results = find_reachable_packages(str(tmp_repo), ["yaml"])
     assert results[0].reachable is True
     assert results[0].usages[0].function == "inner"
@@ -100,14 +106,17 @@ def test_site_packages_and_venv_are_skipped(tmp_repo):
     assert results[0].reachable is False
 
 
-@pytest.mark.parametrize("pypi_name,expected_import", [
-    ("PyYAML", "yaml"),
-    ("Jinja2", "jinja2"),
-    ("Pillow", "PIL"),
-    ("beautifulsoup4", "bs4"),
-    ("requests", "requests"),  # no mismatch: falls through to lowercase
-    ("SomeRandomPackage", "somerandompackage"),  # unknown: lowercased fallback
-])
+@pytest.mark.parametrize(
+    "pypi_name,expected_import",
+    [
+        ("PyYAML", "yaml"),
+        ("Jinja2", "jinja2"),
+        ("Pillow", "PIL"),
+        ("beautifulsoup4", "bs4"),
+        ("requests", "requests"),  # no mismatch: falls through to lowercase
+        ("SomeRandomPackage", "somerandompackage"),  # unknown: lowercased fallback
+    ],
+)
 def test_resolve_import_name_mapping(pypi_name, expected_import):
     assert resolve_import_name(pypi_name) == expected_import
 
@@ -116,10 +125,20 @@ def test_filter_vulnerabilities_end_to_end_separates_reachable_and_filtered(tmp_
     write(tmp_repo, "app.py", "import yaml\nyaml.load('x')\n")
     # jinja2 imported nowhere -> should be filtered
     vulns = [
-        {"id": "CVE-1", "package": "PyYAML", "ecosystem": "PyPI",
-         "installed_version": "5.3.1", "fixed_version": "5.4"},
-        {"id": "CVE-2", "package": "Jinja2", "ecosystem": "PyPI",
-         "installed_version": "2.10.1", "fixed_version": "2.10.3"},
+        {
+            "id": "CVE-1",
+            "package": "PyYAML",
+            "ecosystem": "PyPI",
+            "installed_version": "5.3.1",
+            "fixed_version": "5.4",
+        },
+        {
+            "id": "CVE-2",
+            "package": "Jinja2",
+            "ecosystem": "PyPI",
+            "installed_version": "2.10.1",
+            "fixed_version": "2.10.3",
+        },
     ]
     result = filter_vulnerabilities(vulns, str(tmp_repo))
     assert [v["id"] for v in result["reachable"]] == ["CVE-1"]
@@ -132,7 +151,14 @@ def test_non_pypi_ecosystem_always_passes_through_unfiltered(tmp_repo):
     and must never be silently dropped -- they should always be treated as
     reachable/actionable so a downstream (future) JS/Java analyzer can
     handle them, rather than this module wrongly filtering them out."""
-    vulns = [{"id": "CVE-JS", "package": "lodash", "ecosystem": "npm",
-              "installed_version": "4.17.15", "fixed_version": "4.17.21"}]
+    vulns = [
+        {
+            "id": "CVE-JS",
+            "package": "lodash",
+            "ecosystem": "npm",
+            "installed_version": "4.17.15",
+            "fixed_version": "4.17.21",
+        }
+    ]
     result = filter_vulnerabilities(vulns, str(tmp_repo))
     assert [v["id"] for v in result["reachable"]] == ["CVE-JS"]

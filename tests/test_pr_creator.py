@@ -5,6 +5,7 @@ The one property that matters most here: pr_creator must REFUSE to create
 a PR when the batch remediation didn't fully succeed. Everything else
 (branch naming, report formatting) is secondary to this safety gate.
 """
+
 import sys
 from pathlib import Path
 

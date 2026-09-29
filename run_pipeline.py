@@ -15,6 +15,7 @@ Usage:
 This is the "single button" entrypoint; each step's module can also be run
 standalone (see README.md) for debugging or partial re-runs.
 """
+
 import argparse
 import json
 import sys
@@ -26,16 +27,24 @@ from agent import pr_creator
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Agentic Vulnerability Triage & Auto-Patching pipeline")
+    parser = argparse.ArgumentParser(
+        description="Agentic Vulnerability Triage & Auto-Patching pipeline"
+    )
     parser.add_argument("repo_path", help="Path to the target repository")
-    parser.add_argument("--mock", help="Path to a pre-existing normalized scan results JSON "
-                                        "(use this if osv-scanner isn't installed)")
+    parser.add_argument(
+        "--mock",
+        help="Path to a pre-existing normalized scan results JSON "
+        "(use this if osv-scanner isn't installed)",
+    )
     parser.add_argument("--backend", default="dry-run", choices=["dry-run", "ollama", "groq"])
     parser.add_argument("--model", default=None)
     parser.add_argument("--api-key", default=None)
     parser.add_argument("--max-attempts", type=int, default=3)
-    parser.add_argument("--push-pr", action="store_true",
-                         help="Actually push branch + open PR via `gh`. Default: local dry-run only.")
+    parser.add_argument(
+        "--push-pr",
+        action="store_true",
+        help="Actually push branch + open PR via `gh`. Default: local dry-run only.",
+    )
     parser.add_argument("--base-branch", default="main")
     args = parser.parse_args()
 
@@ -76,8 +85,12 @@ def main():
     print("STEP 3+4: LLM Patch Generation + Sandboxed TDD Self-Repair Loop")
     print("=" * 70)
     batch_result = sandbox_runner.remediate_batch(
-        str(repo_path), contexts, backend=args.backend, model=args.model,
-        api_key=args.api_key, max_attempts=args.max_attempts,
+        str(repo_path),
+        contexts,
+        backend=args.backend,
+        model=args.model,
+        api_key=args.api_key,
+        max_attempts=args.max_attempts,
     )
     for p in batch_result["patches"]:
         print(f"  {p['vuln_id']} ({p['package']}): applied={p['applied']}")
@@ -88,8 +101,10 @@ def main():
         json.dump(batch_result, f, indent=2)
 
     if not batch_result["success"]:
-        print("\nBatch remediation did not fully succeed — stopping before PR creation. "
-              "See remediation_results.json for details (diffs + test output).")
+        print(
+            "\nBatch remediation did not fully succeed — stopping before PR creation. "
+            "See remediation_results.json for details (diffs + test output)."
+        )
         return
 
     # ---------- Step 5 ----------
@@ -97,7 +112,10 @@ def main():
     print("STEP 5: Automated PR Creation & Proof-of-Execution")
     print("=" * 70)
     pr_result = pr_creator.create_pr_for_batch(
-        str(repo_path), batch_result, base_branch=args.base_branch, dry_run=not args.push_pr,
+        str(repo_path),
+        batch_result,
+        base_branch=args.base_branch,
+        dry_run=not args.push_pr,
     )
     print(json.dumps({k: v for k, v in pr_result.items() if k != "body"}, indent=2))
 

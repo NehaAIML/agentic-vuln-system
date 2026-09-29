@@ -17,12 +17,13 @@ precise context bundle for the LLM:
 
 This deliberately avoids dumping whole files into the LLM context window.
 """
+
 import ast
 import json
 import sys
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional
 
 
 @dataclass
@@ -71,7 +72,7 @@ class FileGraph:
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 start = node.lineno
                 end = getattr(node, "end_lineno", node.lineno)
-                src = "".join(self.lines[start - 1:end])
+                src = "".join(self.lines[start - 1 : end])
                 self.functions[node.name] = FunctionContext(
                     name=node.name, start_line=start, end_line=end, source=src
                 )
@@ -195,14 +196,14 @@ def build_contexts_for_reachable_vulns(repo_root: str, reachability_json: str) -
         # Take the first usage site as the primary patch target; the rest
         # are reported so the LLM/patch step can address multi-site fixes.
         primary = usages[0]
-        ctx = get_context_for_usage(
-            repo_root, primary["file"], vuln["package"], primary["line"]
+        ctx = get_context_for_usage(repo_root, primary["file"], vuln["package"], primary["line"])
+        contexts.append(
+            {
+                "vuln": vuln,
+                "context": asdict(ctx),
+                "all_usage_sites": usages,
+            }
         )
-        contexts.append({
-            "vuln": vuln,
-            "context": asdict(ctx),
-            "all_usage_sites": usages,
-        })
     return contexts
 
 

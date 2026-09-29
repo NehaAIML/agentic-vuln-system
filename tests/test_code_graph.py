@@ -4,6 +4,7 @@ test_code_graph.py
 Unit tests for scanners/code_graph.py: function-boundary detection, call
 graph edges, and blast-radius computation.
 """
+
 import sys
 import tempfile
 from pathlib import Path
@@ -27,7 +28,7 @@ def write(repo: Path, relpath: str, content: str):
     return p
 
 
-SAMPLE = '''import yaml
+SAMPLE = """import yaml
 
 def helper():
     return load_it("x")
@@ -37,7 +38,7 @@ def load_it(raw):
 
 def unrelated():
     return 42
-'''
+"""
 
 
 def test_function_containing_line_finds_correct_function(tmp_repo):
@@ -63,7 +64,7 @@ def test_blast_radius_counts_upstream_callers(tmp_repo):
 
 
 def test_transitive_blast_radius(tmp_repo):
-    code = '''import yaml
+    code = """import yaml
 
 def top():
     return middle()
@@ -73,7 +74,7 @@ def middle():
 
 def bottom():
     return yaml.load("x")
-'''
+"""
     path = write(tmp_repo, "app.py", code)
     graph = FileGraph(path)
     # bottom <- middle <- top: 2 transitive upstream callers

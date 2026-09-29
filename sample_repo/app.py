@@ -1,4 +1,5 @@
 """A tiny sample app with a real, reachable vulnerable dependency usage."""
+
 import requests
 import yaml
 
@@ -10,7 +11,7 @@ def fetch_config(url):
 
 def load_config(raw_yaml: str):
     # Vulnerable: yaml.load without a safe Loader (CVE-class issue in PyYAML)
-    return yaml.load(raw_yaml)
+    return yaml.safe_load(raw_yaml)
 
 
 def main():

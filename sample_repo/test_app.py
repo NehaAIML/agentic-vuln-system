@@ -3,6 +3,7 @@ Regression tests for sample_repo/app.py. The sandbox_runner will run these
 inside its isolated copy after applying a generated patch, to confirm the
 patch doesn't break existing behavior.
 """
+
 import sys
 from pathlib import Path
 from unittest.mock import patch, MagicMock

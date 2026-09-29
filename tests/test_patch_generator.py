@@ -6,12 +6,11 @@ clean_diff_output() must strip LLM commentary/markdown fences WITHOUT ever
 truncating meaningful diff content (trailing blank context lines especially
 -- this caused a real corrupt-patch bug during development).
 """
+
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
-import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from agent.patch_generator import clean_diff_output, call_dry_run
@@ -55,7 +54,7 @@ def test_preserves_trailing_blank_context_lines():
     lines = cleaned.splitlines()
     # The hunk header claims 5 old / 5 new lines; count the actual body lines
     # that follow the @@ header and belong to the hunk (context/-/+ prefixed).
-    hunk_body = [l for l in lines[lines.index("@@ -1,5 +1,5 @@") + 1:]]
+    hunk_body = [line for line in lines[lines.index("@@ -1,5 +1,5 @@") + 1 :]]
     assert len(hunk_body) == 5, f"expected 5 hunk lines, got {len(hunk_body)}: {hunk_body}"
 
 
@@ -73,10 +72,14 @@ def test_dry_run_pyyaml_diff_actually_applies_with_git(tmp_path):
     """
     app_py = tmp_path / "app.py"
     app_py.write_text(
-        "import yaml\n\n\ndef load_config(raw_yaml):\n"
-        "    return yaml.load(raw_yaml)\n"
+        "import yaml\n\n\ndef load_config(raw_yaml):\n" "    return yaml.load(raw_yaml)\n"
     )
-    vuln = {"id": "CVE-TEST", "package": "PyYAML", "installed_version": "5.3.1", "fixed_version": "5.4"}
+    vuln = {
+        "id": "CVE-TEST",
+        "package": "PyYAML",
+        "installed_version": "5.3.1",
+        "fixed_version": "5.4",
+    }
     context = {"file": "app.py"}
 
     diff = call_dry_run(vuln, context, repo_root=str(tmp_path))
@@ -88,7 +91,9 @@ def test_dry_run_pyyaml_diff_actually_applies_with_git(tmp_path):
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
     result = subprocess.run(
         ["git", "apply", "--check", str(patch_file)],
-        cwd=tmp_path, capture_output=True, text=True,
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
     )
     assert result.returncode == 0, f"git apply --check failed: {result.stderr}"
 
@@ -100,7 +105,12 @@ def test_dry_run_pyyaml_diff_actually_applies_with_git(tmp_path):
 def test_dry_run_unknown_package_returns_noop_diff_without_crashing(tmp_path):
     app_py = tmp_path / "app.py"
     app_py.write_text("import somepkg\nsomepkg.do_thing()\n")
-    vuln = {"id": "CVE-X", "package": "SomeUnknownPkg", "installed_version": "1.0", "fixed_version": "1.1"}
+    vuln = {
+        "id": "CVE-X",
+        "package": "SomeUnknownPkg",
+        "installed_version": "1.0",
+        "fixed_version": "1.1",
+    }
     context = {"file": "app.py"}
     diff = call_dry_run(vuln, context, repo_root=str(tmp_path))
     assert diff.startswith("diff --git")

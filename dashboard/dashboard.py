@@ -17,9 +17,9 @@ successfully auto-patched count, per-CVE attempt counts, and a simple
 Mean Time to Remediate (MTTR) estimate derived from attempt durations
 recorded by the sandbox runner.
 """
+
 import json
 import sys
-import time
 from pathlib import Path
 
 import streamlit as st
@@ -44,8 +44,10 @@ def get_repo_path() -> Path:
 def main():
     st.set_page_config(page_title="Vuln Triage & Auto-Patch Dashboard", layout="wide")
     st.title("🛡️ Agentic Vulnerability Triage & Auto-Patching")
-    st.caption("Live metrics from the local pipeline — scan → reachability → context → "
-               "LLM patch → sandboxed TDD loop → PR")
+    st.caption(
+        "Live metrics from the local pipeline — scan → reachability → context → "
+        "LLM patch → sandboxed TDD loop → PR"
+    )
 
     repo_path = get_repo_path()
 
@@ -62,8 +64,10 @@ def main():
         )
         return
 
-    total_detected = len(scan_results) if scan_results else (
-        len(reachability["reachable"]) + len(reachability["filtered"]) if reachability else 0
+    total_detected = (
+        len(scan_results)
+        if scan_results
+        else (len(reachability["reachable"]) + len(reachability["filtered"]) if reachability else 0)
     )
     reachable_count = len(reachability["reachable"]) if reachability else None
     filtered_count = len(reachability["filtered"]) if reachability else None
@@ -71,15 +75,17 @@ def main():
     # remediation.json can be either the single-CVE list shape (each item a
     # RemediationResult) or the batch shape (one dict with a "patches" key).
     if remediation is not None and isinstance(remediation, dict) and "patches" in remediation:
-        patched_count = sum(1 for p in remediation["patches"] if p["applied"]) if remediation["tests_passed"] else 0
+        patched_count = (
+            sum(1 for p in remediation["patches"] if p["applied"])
+            if remediation["tests_passed"]
+            else 0
+        )
         total_patch_targets = len(remediation["patches"])
         all_attempt_durations = []  # batch mode doesn't track per-attempt timing granularly
     elif remediation is not None and isinstance(remediation, list):
         patched_count = sum(1 for r in remediation if r["success"])
         total_patch_targets = len(remediation)
-        all_attempt_durations = [
-            a["duration_seconds"] for r in remediation for a in r["attempts"]
-        ]
+        all_attempt_durations = [a["duration_seconds"] for r in remediation for a in r["attempts"]]
     else:
         patched_count, total_patch_targets, all_attempt_durations = 0, 0, []
 
@@ -87,8 +93,10 @@ def main():
     col1.metric("Total CVEs detected", total_detected)
     col2.metric("Reachable (actionable)", reachable_count if reachable_count is not None else "—")
     col3.metric("Filtered (dead code)", filtered_count if filtered_count is not None else "—")
-    col4.metric("Auto-patched successfully", f"{patched_count}/{total_patch_targets}"
-                if total_patch_targets else "—")
+    col4.metric(
+        "Auto-patched successfully",
+        f"{patched_count}/{total_patch_targets}" if total_patch_targets else "—",
+    )
 
     if all_attempt_durations:
         mttr = sum(all_attempt_durations) / max(1, total_patch_targets)
@@ -96,14 +104,23 @@ def main():
 
     st.divider()
 
-    tab1, tab2, tab3 = st.tabs(["📋 Vulnerabilities", "🔍 Reachability Triage", "🩹 Remediation Results"])
+    tab1, tab2, tab3 = st.tabs(
+        ["📋 Vulnerabilities", "🔍 Reachability Triage", "🩹 Remediation Results"]
+    )
 
     with tab1:
         if scan_results:
             st.dataframe(
-                [{"CVE": v["id"], "Package": v["package"], "Installed": v["installed_version"],
-                  "Fixed in": v.get("fixed_version"), "Severity": v.get("severity")}
-                 for v in scan_results],
+                [
+                    {
+                        "CVE": v["id"],
+                        "Package": v["package"],
+                        "Installed": v["installed_version"],
+                        "Fixed in": v.get("fixed_version"),
+                        "Severity": v.get("severity"),
+                    }
+                    for v in scan_results
+                ],
                 use_container_width=True,
             )
         else:
@@ -115,9 +132,11 @@ def main():
             for v in reachability["reachable"]:
                 usages = v.get("_reachability", {}).get("usages", [])
                 loc = usages[0] if usages else {}
-                st.write(f"**{v['id']}** ({v['package']}) — used at "
-                         f"`{loc.get('file', '?')}:{loc.get('line', '?')}` "
-                         f"in `{loc.get('function', '?')}()`")
+                st.write(
+                    f"**{v['id']}** ({v['package']}) — used at "
+                    f"`{loc.get('file', '?')}:{loc.get('line', '?')}` "
+                    f"in `{loc.get('function', '?')}()`"
+                )
             st.subheader("🗑️ Filtered — dead code, deprioritized")
             for v in reachability["filtered"]:
                 st.write(f"~~{v['id']} ({v['package']})~~ — never imported/called")
@@ -130,18 +149,24 @@ def main():
         elif isinstance(remediation, dict) and "patches" in remediation:
             st.write(f"**Overall success:** {'✅ Yes' if remediation['success'] else '❌ No'}")
             for p in remediation["patches"]:
-                with st.expander(f"{p['vuln_id']} ({p['package']}) — "
-                                  f"{'✅ applied' if p['applied'] else '❌ failed to apply'}"):
+                with st.expander(
+                    f"{p['vuln_id']} ({p['package']}) — "
+                    f"{'✅ applied' if p['applied'] else '❌ failed to apply'}"
+                ):
                     st.code(p.get("diff") or "(no diff)", language="diff")
             st.text_area("Test output", remediation.get("test_output", ""), height=200)
         else:
             for r in remediation:
-                with st.expander(f"{r['vuln_id']} ({r['package']}) — "
-                                  f"{'✅ SUCCESS' if r['success'] else '❌ FAILED'} "
-                                  f"after {len(r['attempts'])} attempt(s)"):
+                with st.expander(
+                    f"{r['vuln_id']} ({r['package']}) — "
+                    f"{'✅ SUCCESS' if r['success'] else '❌ FAILED'} "
+                    f"after {len(r['attempts'])} attempt(s)"
+                ):
                     for a in r["attempts"]:
-                        st.write(f"Attempt {a['attempt_number']}: applied={a['apply_succeeded']}, "
-                                 f"tests_passed={a['tests_passed']}, {a['duration_seconds']}s")
+                        st.write(
+                            f"Attempt {a['attempt_number']}: applied={a['apply_succeeded']}, "
+                            f"tests_passed={a['tests_passed']}, {a['duration_seconds']}s"
+                        )
                         st.code(a["diff"], language="diff")
 
 

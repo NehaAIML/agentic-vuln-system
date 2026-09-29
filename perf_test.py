@@ -17,10 +17,10 @@ retries as the dominant cost on top of these numbers.
 
 Run: python3 perf_test.py
 """
+
 import json
 import random
 import shutil
-import string
 import sys
 import tempfile
 import time
@@ -46,7 +46,7 @@ def gen_file(vulnerable_packages: list, seed: int, reachable: bool) -> str:
         lines.append(f"    return {pkg}.do_something()")
     else:
         lines.append(f"def unrelated_{seed}():")
-        lines.append(f"    return os.path.join('a', 'b')")
+        lines.append("    return os.path.join('a', 'b')")
     return "\n".join(lines) + "\n"
 
 
@@ -54,13 +54,19 @@ def build_synthetic_repo(root: Path, num_files: int, num_packages: int) -> list:
     packages = [f"pkg_{i}" for i in range(num_packages)]
     vulns = []
     for i, pkg in enumerate(packages):
-        vulns.append({
-            "id": f"CVE-SIM-{i}", "package": pkg, "ecosystem": "PyPI",
-            "installed_version": "1.0", "fixed_version": "1.1",
-            "severity": "HIGH", "summary": "synthetic",
-        })
+        vulns.append(
+            {
+                "id": f"CVE-SIM-{i}",
+                "package": pkg,
+                "ecosystem": "PyPI",
+                "installed_version": "1.0",
+                "fixed_version": "1.1",
+                "severity": "HIGH",
+                "summary": "synthetic",
+            }
+        )
     for i in range(num_files):
-        reachable = (i % 3 != 0)  # ~2/3 of files actually use their import
+        reachable = i % 3 != 0  # ~2/3 of files actually use their import
         content = gen_file(packages, seed=i, reachable=reachable)
         (root / f"module_{i}.py").write_text(content)
     return vulns
@@ -86,30 +92,44 @@ def run_benchmark(num_files: int, num_packages: int):
         )
         reach_out = tmp / "reachability_results.json"
         reach_out.write_text(json.dumps(reach_result))
-        print(f"    -> {len(reach_result['reachable'])} reachable, {len(reach_result['filtered'])} filtered")
+        print(
+            f"    -> {len(reach_result['reachable'])} reachable, {len(reach_result['filtered'])} filtered"
+        )
 
         # Step 2: code-graph context building
         contexts, t2 = time_it(
             "Step 2: code-graph context extraction",
-            code_graph.build_contexts_for_reachable_vulns, str(tmp), str(reach_out)
+            code_graph.build_contexts_for_reachable_vulns,
+            str(tmp),
+            str(reach_out),
         )
 
         # Step 4 building block: sandbox creation cost alone (copytree)
-        _, t3 = time_it("   -> sandbox creation (copytree) alone", sandbox_runner.make_sandbox, str(tmp))
+        _, t3 = time_it(
+            "   -> sandbox creation (copytree) alone", sandbox_runner.make_sandbox, str(tmp)
+        )
 
         # Full batch remediation (dry-run: near-zero LLM cost, measures our overhead)
         batch_result, t4 = time_it(
             "Step 3+4: batch remediate (dry-run backend)",
-            sandbox_runner.remediate_batch, str(tmp), contexts, backend="dry-run", max_attempts=1
+            sandbox_runner.remediate_batch,
+            str(tmp),
+            contexts,
+            backend="dry-run",
+            max_attempts=1,
         )
 
         total = t1 + t2 + t3 + t4
         print(f"  {'TOTAL':.<55} {total:>8.3f}s")
         return {
-            "num_files": num_files, "num_packages": num_packages,
+            "num_files": num_files,
+            "num_packages": num_packages,
             "reachable_count": len(reach_result["reachable"]),
-            "t_reachability": t1, "t_code_graph": t2,
-            "t_sandbox_copy": t3, "t_batch_remediate": t4, "t_total": total,
+            "t_reachability": t1,
+            "t_code_graph": t2,
+            "t_sandbox_copy": t3,
+            "t_batch_remediate": t4,
+            "t_total": total,
         }
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
@@ -124,12 +144,16 @@ def main():
         results.append(run_benchmark(num_files, num_packages))
 
     print("\n=== Summary ===")
-    print(f"{'files':>6} {'pkgs':>5} {'reachable':>10} {'reach(s)':>10} {'graph(s)':>10} "
-          f"{'sbox(s)':>9} {'batch(s)':>9} {'total(s)':>9}")
+    print(
+        f"{'files':>6} {'pkgs':>5} {'reachable':>10} {'reach(s)':>10} {'graph(s)':>10} "
+        f"{'sbox(s)':>9} {'batch(s)':>9} {'total(s)':>9}"
+    )
     for r in results:
-        print(f"{r['num_files']:>6} {r['num_packages']:>5} {r['reachable_count']:>10} "
-              f"{r['t_reachability']:>10.3f} {r['t_code_graph']:>10.3f} "
-              f"{r['t_sandbox_copy']:>9.3f} {r['t_batch_remediate']:>9.3f} {r['t_total']:>9.3f}")
+        print(
+            f"{r['num_files']:>6} {r['num_packages']:>5} {r['reachable_count']:>10} "
+            f"{r['t_reachability']:>10.3f} {r['t_code_graph']:>10.3f} "
+            f"{r['t_sandbox_copy']:>9.3f} {r['t_batch_remediate']:>9.3f} {r['t_total']:>9.3f}"
+        )
 
     print("\nNote on real-backend latency (not simulated here):")
     print("  Real per-CVE cost = t_batch_remediate (this pipeline's overhead)")

@@ -22,6 +22,7 @@ Run: python3 simulate.py
 Exit code 0 = all assertions passed. Non-zero = simulation caught a
 real discrepancy between expected and actual pipeline behavior.
 """
+
 import json
 import shutil
 import sys
@@ -60,14 +61,42 @@ def build_synthetic_repo(root: Path):
         "        return pkg_delta.serialize(self)\n"
     )
     scan_results = [
-        {"id": "CVE-A", "package": "pkg_alpha", "ecosystem": "PyPI",
-         "installed_version": "1.0", "fixed_version": "1.1", "severity": "HIGH", "summary": "test"},
-        {"id": "CVE-B", "package": "pkg_beta", "ecosystem": "PyPI",
-         "installed_version": "1.0", "fixed_version": "1.1", "severity": "MEDIUM", "summary": "test"},
-        {"id": "CVE-C", "package": "pkg_gamma", "ecosystem": "PyPI",
-         "installed_version": "1.0", "fixed_version": "1.1", "severity": "CRITICAL", "summary": "test"},
-        {"id": "CVE-D", "package": "pkg_delta", "ecosystem": "PyPI",
-         "installed_version": "1.0", "fixed_version": "1.1", "severity": "LOW", "summary": "test"},
+        {
+            "id": "CVE-A",
+            "package": "pkg_alpha",
+            "ecosystem": "PyPI",
+            "installed_version": "1.0",
+            "fixed_version": "1.1",
+            "severity": "HIGH",
+            "summary": "test",
+        },
+        {
+            "id": "CVE-B",
+            "package": "pkg_beta",
+            "ecosystem": "PyPI",
+            "installed_version": "1.0",
+            "fixed_version": "1.1",
+            "severity": "MEDIUM",
+            "summary": "test",
+        },
+        {
+            "id": "CVE-C",
+            "package": "pkg_gamma",
+            "ecosystem": "PyPI",
+            "installed_version": "1.0",
+            "fixed_version": "1.1",
+            "severity": "CRITICAL",
+            "summary": "test",
+        },
+        {
+            "id": "CVE-D",
+            "package": "pkg_delta",
+            "ecosystem": "PyPI",
+            "installed_version": "1.0",
+            "fixed_version": "1.1",
+            "severity": "LOW",
+            "summary": "test",
+        },
     ]
     (root / "vuln_scan_results.json").write_text(json.dumps(scan_results, indent=2))
     return scan_results
@@ -89,9 +118,13 @@ def run_simulation() -> list:
         expected_filtered = {"CVE-C"}
 
         if reachable_ids != expected_reachable:
-            failures.append(f"Step 1 reachable mismatch: expected {expected_reachable}, got {reachable_ids}")
+            failures.append(
+                f"Step 1 reachable mismatch: expected {expected_reachable}, got {reachable_ids}"
+            )
         if filtered_ids != expected_filtered:
-            failures.append(f"Step 1 filtered mismatch: expected {expected_filtered}, got {filtered_ids}")
+            failures.append(
+                f"Step 1 filtered mismatch: expected {expected_filtered}, got {filtered_ids}"
+            )
 
         reach_out = tmp / "reachability_results.json"
         reach_out.write_text(json.dumps(reach_result))
@@ -101,15 +134,21 @@ def run_simulation() -> list:
         context_by_id = {c["vuln"]["id"]: c["context"] for c in contexts}
 
         if context_by_id.get("CVE-A", {}).get("target_function") is None:
-            failures.append("Step 2: CVE-A should resolve to an enclosing function (handle_request)")
+            failures.append(
+                "Step 2: CVE-A should resolve to an enclosing function (handle_request)"
+            )
         elif context_by_id["CVE-A"]["target_function"]["name"] != "handle_request":
-            failures.append(f"Step 2: CVE-A enclosing function wrong: {context_by_id['CVE-A']['target_function']['name']}")
+            failures.append(
+                f"Step 2: CVE-A enclosing function wrong: {context_by_id['CVE-A']['target_function']['name']}"
+            )
 
         # CVE-B is used inside step_two, called transitively from entrypoint via step_one.
         # Blast radius should be 2 (step_one, entrypoint both transitively reach step_two).
         b_ctx = context_by_id.get("CVE-B", {})
         if b_ctx.get("target_function", {}).get("name") != "step_two":
-            failures.append(f"Step 2: CVE-B enclosing function wrong: {b_ctx.get('target_function')}")
+            failures.append(
+                f"Step 2: CVE-B enclosing function wrong: {b_ctx.get('target_function')}"
+            )
         elif b_ctx["blast_radius"] != 2:
             failures.append(f"Step 2: CVE-B blast radius expected 2, got {b_ctx['blast_radius']}")
 
@@ -140,6 +179,8 @@ if __name__ == "__main__":
             print(f"  - {f}")
         sys.exit(1)
     else:
-        print("SIMULATION PASSED: pipeline output matches known ground truth "
-              "on a synthetic 4-CVE, 4-file, transitive-call repo.")
+        print(
+            "SIMULATION PASSED: pipeline output matches known ground truth "
+            "on a synthetic 4-CVE, 4-file, transitive-call repo."
+        )
         sys.exit(0)
