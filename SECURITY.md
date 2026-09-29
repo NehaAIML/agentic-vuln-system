@@ -10,15 +10,28 @@ Do not open public issues for exploitable findings.
 This project scans *other* repositories and executes AI-generated patches.
 It is therefore itself a security-sensitive component.
 
->>> EDIT THIS SECTION — do not ship as-is <<<
+### Current Isolation Model
 
-- Sandbox mechanism: [ ] temp dir only  [ ] Docker  [ ] nsjail/firejail  [ ] VM
-- Network access inside sandbox: [ ] enabled  [ ] disabled
-- Resource limits (CPU/mem/disk): [ ] none  [ ] specified below
-- Secrets exposed to generated code: [ ] possible  [ ] prevented
+**Not hardened for untrusted input.** Treat this tool as a development
+aid, not a production sandbox.
 
-Until the above is filled in and verified, do not run this pipeline
-against untrusted repositories or with production credentials present.
+- **Sandbox mechanism:** plain `tempfile.mkdtemp()` — filesystem-level
+  copy of the target repo. No container, no VM, no OS-level isolation.
+- **Network access:** enabled. Generated patches and test commands run
+  with the host's network stack available.
+- **Resource limits:** none. No CPU, memory, disk, or wall-clock caps
+  beyond per-command `timeout=` arguments.
+- **Secrets:** inherited from the parent environment. Do **not** run
+  this pipeline with production credentials present (AWS keys, GitHub
+  tokens, etc.) in the environment.
+
+### Recommendations Before Running
+
+- Run against test/fork repositories only.
+- Unset sensitive environment variables first:
+  `env -i PATH="$PATH" python run_pipeline.py ...`
+- For untrusted input, wrap the process in a container yourself
+  (Docker, `nsjail`, `firejail`, or a VM). This is on the roadmap.
 
 ## Supported Versions
 
