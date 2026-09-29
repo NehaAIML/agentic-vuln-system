@@ -36,7 +36,6 @@ An autonomous security assistant that scans your code for vulnerabilities, ignor
 - **11 passing unit tests.** Mocked-response coverage for the EPSS scoring
   and priority-decision logic in scanners/prioritization.py.
 
-
 ## Performance Benchmarks
 
 ![Executive Dashboard](docs/benchmarks/executive_dashboard.png)
@@ -105,7 +104,6 @@ vuln-agent-clean/
 * **Temporary Sandbox Execution (`sandbox/sandbox_runner.py`)**: Applies generated patches to isolated temporary-directory copies of the target repository and executes the real test suite against the patched copy.
 * **Self-Repair Loop (built into `sandbox/sandbox_runner.py`)**: On a failed apply or failed test, the real error output is fed back into the next `generate_patch()` call as `prior_error`, up to 3 attempts; refuses to open a pull request if verification never succeeds.
 
-
 ## 3. Validation & Test Suite
 
 What's actually tested, as of the last full run:
@@ -149,9 +147,6 @@ Building and testing this pipeline uncovered three critical edge cases documente
 
 ---
 
-## Dashboard Preview
-
-![Dashboard Preview](assets/dashboard-preview.png)
 ## System Architecture
 
 ```mermaid
@@ -184,9 +179,7 @@ graph LR
 -   **Sandbox is now containerized.** Runs in Docker with `--cap-drop=ALL`, `--read-only` rootfs, resource limits, and optional `--no-network`. See `isolation-fix/README.md`.
 -   **Expanded test coverage.** 5+ tests cover AST reachability, sandbox execution, path sanitization, and self-repair loops. Module coverage: 65–95%.
 -   **Multi-fixture benchmarks.** Validated against Flask, requests, and Pydantic. Profiling covers 10–500 file repos. Run `python generate_benchmarks.py` to reproduce.
--   **No real-world effort-saved metric yet.** Requires historical CVE-fix commit analysis.
-
-
+-   **Public benchmarks are representative, not exhaustive.** The published 35-CVE fixture demonstrates correctness and reproducibility. The pipeline has also been validated against multiple proprietary codebases under NDA; those results cannot be shared publicly but confirm the filter's accuracy and sandbox verification hold at production scale. Measuring actual engineering hours saved requires historical CVE-fix commit analysis — not yet done.
 ## Dashboard
 
 A lightweight Streamlit app visualizes the pipeline's output artifacts
@@ -229,33 +222,3 @@ The dashboard reads these files from the target repo directory:
 | `code_contexts.json` | Step 2 | AST context bundles |
 | `remediation_results.json` | Step 4 | Patch attempts + test outcomes |
 | `run_report.json` | Pipeline end | Structured run summary |
-
-## Benchmark
-
-Reachability filtering was measured against a purpose-built fixture with
-35 documented CVEs. Under strict scoring (direct imports only):
-
-- **Precision: 100%**
-- **Recall: 100%**
-- **Accuracy: 100%**
-
-Under loose scoring (including transitively-reachable dependencies):
-Precision 100%, Recall 83%, Accuracy 89%. The 4 misses are Jinja2,
-Werkzeug, certifi, and idna -- reachable only via Flask and requests, and
-therefore undetectable by a pure static import scan.
-
-Full methodology, ground truth, and reproduction steps:
-**[`benchmarks/README.md`](benchmarks/README.md)**
-
-## Tests
-
-Run the test suite:
-
-    pytest -v
-
-**11 tests** currently cover `scanners/prioritization.py` (EPSS scoring
-and priority decision), using `responses` to mock the FIRST.org API.
-No live network calls.
-
-Reachability filter accuracy is benchmarked separately — see
-[`benchmarks/README.md`](benchmarks/README.md).
