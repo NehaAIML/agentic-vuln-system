@@ -178,6 +178,9 @@ PYPI_TO_IMPORT_NAME = {
     "python-jose": "jose",
     "mysqlclient": "MySQLdb",
     "psycopg2-binary": "psycopg2",
+    "pyopenssl": "OpenSSL",
+    "pysaml2": "saml2",
+    "python-jwt": "python_jwt",
 }
 
 
