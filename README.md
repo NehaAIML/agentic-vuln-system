@@ -36,6 +36,49 @@ An autonomous security assistant that scans your code for vulnerabilities, ignor
 - **11 passing unit tests.** Mocked-response coverage for the EPSS scoring
   and priority-decision logic in scanners/prioritization.py.
 
+## Project Structure
+
+~~~text
+vuln-agent-clean/
+├── .github/
+│   ├── workflows/ci.yml           Python matrix CI (3.10 / 3.11 / 3.12)
+│   └── ISSUE_TEMPLATE/            Bug report + feature request templates
+├── agent/                         LLM patch generation + PR creation
+├── assets/                        README images
+├── benchmarks/                    Reachability benchmark (evidence)
+│   ├── README.md                  Methodology, results, reproduction steps
+│   ├── score.py                   Reproducible scoring script
+│   └── data/
+│       ├── ground_truth.json      35-CVE answer key (hand-verified)
+│       ├── vuln_scan_results.json 35-CVE mock scan input for --mock
+│       ├── results.csv            Per-CVE scored output
+│       └── run_report.json        Structured pipeline run report
+├── dashboard/                     Streamlit proof-of-execution dashboard
+├── docs/
+│   └── adr/                       Architecture Decision Records
+│       ├── README.md              ADR index
+│       ├── 0001-ast-callgraph-vs-runtime-tracing.md
+│       └── 0002-sandbox-tdd-vs-llm-review.md
+├── sample_repo/                   Synthetic test fixture (4 files, 4 CVEs)
+├── sandbox/                       Sandboxed TDD self-repair loop
+├── scanners/                      AST reachability + EPSS prioritization
+├── scripts/
+│   └── hardening/                 Archived hardening scripts (one-shot tools)
+├── tests/
+│   └── test_prioritization.py     11 mocked-response EPSS tests
+├── utils/                         Shared helpers (LLM client, etc.)
+├── .pre-commit-config.yaml        ruff, ruff-format, mypy, secrets, etc.
+├── CONTRIBUTING.md                Onboarding + commit conventions
+├── LICENSE                        MIT
+├── README.md                      This file
+├── SECURITY.md                    Threat model + isolation model
+├── TODO.md                        Open vs. completed items
+├── pyproject.toml                 Flat-layout packaging + tool config
+├── requirements.lock              Pinned transitive dev dependencies
+├── requirements.txt               Pinned runtime dependencies
+└── requirements-dashboard.txt     Pinned dashboard dependencies
+~~~
+
 ## 1. Background & Motivation
 
 In April 2026, NIST announced it is no longer attempting to enrich every submitted vulnerability in the National Vulnerability Database due to a 263% surge in CVE submissions between 2020 and 2025. With thousands of vulnerabilities relegated to "Not Scheduled" status, relying on traditional NVD severity enrichment leaves massive security blind spots.
