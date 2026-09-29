@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Agentic pipeline that filters dead-code vulnerabilities, prioritizes real-world threats, and tests AI-generated patches in isolated sandboxes."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
 authors = [{ name = "NehaAIML" }]
 dependencies = [
     "requests",
@@ -27,6 +27,14 @@ dev = [
 
 [project.scripts]
 vuln-triage = "run_pipeline:main"
+
+# ---- Flat-layout fix: explicitly declare packages ----
+[tool.setuptools]
+py-modules = ["run_pipeline", "simulate", "create_pr", "generate_contexts", "perf_test"]
+packages = ["agent", "sandbox", "scanners", "dashboard", "utils"]
+
+[tool.setuptools.package-data]
+"*" = ["*.json", "*.txt", "*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
