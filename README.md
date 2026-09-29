@@ -1,39 +1,5 @@
 # Enterprise Agentic Vulnerability Triage and Automated Remediation System
 
-## Performance Benchmarks
-
-![Executive Dashboard](docs/benchmarks/executive_dashboard.png)
-
-### Key Achievements
-| Metric | Result | Business Impact |
-| :--- | :--- | :--- |
-| **Noise Reduction** | 88% | Eliminates 88% of irrelevant alerts |
-| **Remediation Speed** | 4 Hours | 12x faster than manual review |
-| **Accuracy** | 100% | Zero false positives in strict mode |
-| **Cost Savings** | ~$44k/yr | Based on 100 CVEs per engineer/year |
-
-## Performance Profiling
-
-![Profiling Analysis](docs/benchmarks/profiling_featured.png)
-
-> **Note:** Reachability scanning via AST remains flat at ~95ms even at 500 files, while sandbox verification scales linearly with file count due to Python interpreter startup overhead.
-
-## System Architecture
-
-```mermaid
-graph LR
-    A[Vulnerability Scan] --> B(AST Reachability Filter)
-    B --> C{Is Code Live?}
-    C -- No --> D[Discard]
-    C -- Yes --> E[EPSS Prioritization]
-    E --> F[LLM Patch Generation]
-    F --> G[Sandboxed TDD Loop]
-    G --> H[Automated PR]
-```
-
----
-
-
 [![Tests](https://img.shields.io/badge/tests-11%20passing-brightgreen)](#tests)
 
 An autonomous security assistant that scans your code for vulnerabilities, ignores false alarms where the vulnerable code isn't actually used, generates AI-powered fixes, and tests them safely in an isolated sandbox before creating a pull request.
@@ -69,6 +35,33 @@ An autonomous security assistant that scans your code for vulnerabilities, ignor
   below lists what the tool cannot do.
 - **11 passing unit tests.** Mocked-response coverage for the EPSS scoring
   and priority-decision logic in scanners/prioritization.py.
+
+
+## Performance Benchmarks
+
+![Executive Dashboard](docs/benchmarks/executive_dashboard.png)
+
+## Performance Profiling
+
+![Profiling Analysis](docs/benchmarks/profiling_featured.png)
+
+> **Note:** Reachability scanning via AST remains flat at ~95ms even at 500 files, while sandbox verification scales linearly with file count due to Python interpreter startup overhead.
+
+## System Architecture
+
+```mermaid
+graph LR
+    A[Vulnerability Scan] --> B(AST Reachability Filter)
+    B --> C{Is Code Live?}
+    C -- No --> D[Discard]
+    C -- Yes --> E[EPSS Prioritization]
+    E --> F[LLM Patch Generation]
+    F --> G[Sandboxed TDD Loop]
+    G --> H[Automated PR]
+```
+
+---
+
 
 ## 1. Background & Motivation
 
