@@ -87,53 +87,10 @@ This repository implements a local, zero-vendor-lock-in pipeline that filters un
 
 ---
 
-## Project Structure
-
-~~~text
-vuln-agent-clean/
-├── .github/
-│   ├── workflows/ci.yml           Python matrix CI (3.10 / 3.11 / 3.12)
-│   └── ISSUE_TEMPLATE/            Bug report + feature request templates
-├── agent/                         LLM patch generation + PR creation
-├── assets/                        README images
-├── benchmarks/                    Reachability benchmark (evidence)
-│   ├── README.md                  Methodology, results, reproduction steps
-│   ├── score.py                   Reproducible scoring script
-│   └── data/
-│       ├── ground_truth.json      35-CVE answer key (hand-verified)
-│       ├── vuln_scan_results.json 35-CVE mock scan input for --mock
-│       ├── results.csv            Per-CVE scored output
-│       └── run_report.json        Structured pipeline run report
-├── dashboard/                     Streamlit proof-of-execution dashboard
-├── docs/
-│   └── adr/                       Architecture Decision Records
-│       ├── README.md              ADR index
-│       ├── 0001-ast-callgraph-vs-runtime-tracing.md
-│       └── 0002-sandbox-tdd-vs-llm-review.md
-├── sample_repo/                   Synthetic test fixture (4 files, 4 CVEs)
-├── sandbox/                       Sandboxed TDD self-repair loop
-├── scanners/                      AST reachability + EPSS prioritization
-├── scripts/
-│   └── hardening/                 Archived hardening scripts (one-shot tools)
-├── tests/
-│   └── test_prioritization.py     11 mocked-response EPSS tests
-├── utils/                         Shared helpers (LLM client, etc.)
-├── .pre-commit-config.yaml        ruff, ruff-format, mypy, secrets, etc.
-├── CONTRIBUTING.md                Onboarding + commit conventions
-├── LICENSE                        MIT
-├── README.md                      This file
-├── SECURITY.md                    Threat model + isolation model
-├── TODO.md                        Open vs. completed items
-├── pyproject.toml                 Flat-layout packaging + tool config
-├── requirements.lock              Pinned transitive dev dependencies
-├── requirements.txt               Pinned runtime dependencies
-└── requirements-dashboard.txt     Pinned dashboard dependencies
-~~~
-
 ## 2. Core Architecture & Modules
 
 * **AST Call-Graph Reachability Engine (`scanners/reachability.py`)**: Parses abstract syntax trees to resolve import aliases (e.g., `PyYAML` imported as `yaml`) and maps third-party dependencies to actual invocation lines, filtering out dead code.
-* **Live EPSS Threat Scoring (`scanners/prioritization.py`)**: Queries the official FIRST.org EPSS API in real time to prioritize vulnerabilities based on active exploit probability. Not currently covered by the test suite — treat scores as informational until a mocked-response test exists.
+* **Live EPSS Threat Scoring (`scanners/prioritization.py`)**: Queries the official FIRST.org EPSS API in real time to prioritize vulnerabilities based on active exploit probability. Covered by 11 mocked-response tests in `tests/test_prioritization.py` (commit ceeb6ac).
 * **Temporary Sandbox Execution (`sandbox/sandbox_runner.py`)**: Applies generated patches to isolated temporary-directory copies of the target repository and executes the real test suite against the patched copy.
 * **Self-Repair Loop (built into `sandbox/sandbox_runner.py`)**: On a failed apply or failed test, the real error output is fed back into the next `generate_patch()` call as `prior_error`, up to 3 attempts; refuses to open a pull request if verification never succeeds.
 
@@ -141,7 +98,7 @@ vuln-agent-clean/
 ## 3. Validation & Test Suite
 
 What's actually tested, as of the last full run:
-* **38 Passing Unit Tests (`tests/`)**: Fully cover reachability resolution, AST call-graph construction, diff sanitization, and retry logic.
+* **Passing Unit Tests (`tests/`)**: Cover reachability resolution, AST call-graph construction, diff sanitization, retry logic, and EPSS scoring/prioritization.
 * **Ground-Truth Simulation (`simulate.py`)**: Executes a synthetic 4-file repository with 4 known CVEs (reachable, dead code, and unrelated) against hand-verified expected outputs.
 * **Adversarial Self-Repair Testing**: Verified via dedicated unit tests ensuring that a patch breaking a test is correctly rejected, and a corrected patch on the second attempt is accepted without wasting retry attempts.
 

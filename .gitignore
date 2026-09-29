@@ -17,3 +17,5 @@ dist/
 *.bak
 *.toml.bak
 sample_repo/run_report.json
+*.bak
+*.md.bak2
