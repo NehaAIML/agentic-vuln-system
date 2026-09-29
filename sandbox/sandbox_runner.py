@@ -1,12 +1,25 @@
+import os
 import shutil
 import subprocess
 import tempfile
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Any
 
-from agent.patch_generator import generate_patch, PatchResult
+from agent.patch_generator import PatchResult, generate_patch
+
+
+def _default_max_attempts() -> int:
+    """Retry cap, overridable via MAX_REPAIR_ATTEMPTS env var (default 3)."""
+    raw = os.getenv("MAX_REPAIR_ATTEMPTS", "3")
+    try:
+        value = int(raw)
+    except ValueError:
+        raise ValueError(f"MAX_REPAIR_ATTEMPTS must be an integer, got {raw!r}")
+    if value < 1:
+        raise ValueError(f"MAX_REPAIR_ATTEMPTS must be >= 1, got {value}")
+    return value
 
 
 @dataclass
@@ -26,14 +39,14 @@ class RemediationResult:
     vuln_id: str
     package: str
     success: bool
-    final_diff: Optional[str]
-    attempts: List[AttemptRecord] = field(default_factory=list)
-    sandbox_path: Optional[str] = None
+    final_diff: str | None
+    attempts: list[AttemptRecord] = field(default_factory=list)
+    sandbox_path: str | None = None
 
 
-def _run(cmd: List[str], cwd: str, timeout: int = 120) -> subprocess.CompletedProcess:
+def _run(cmd: list[str], cwd: str, timeout: int = 120) -> subprocess.CompletedProcess:
     return subprocess.run(
-        cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout
+        cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout, check=False
     )
 
 
@@ -41,9 +54,14 @@ def make_sandbox(repo_path: str) -> str:
     """Copy the repo into a fresh temp dir. Returns the sandbox path."""
     sandbox = tempfile.mkdtemp(prefix="vuln_patch_sandbox_")
     # Copy contents (not the dir itself) so sandbox root== repo root
-    shutil.copytree(repo_path, sandbox, dirs_exist_ok=True,
-                     ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc",
-                                                    ".venv", "venv", "node_modules"))
+    shutil.copytree(
+        repo_path,
+        sandbox,
+        dirs_exist_ok=True,
+        ignore=shutil.ignore_patterns(
+            ".git", "__pycache__", "*.pyc", ".venv", "venv", "node_modules"
+        ),
+    )
     return sandbox
 
 
@@ -60,10 +78,22 @@ def apply_diff(sandbox_path: str, diff_text: str) -> tuple[bool, str]:
     if not is_git_repo:
         # Initialize a throwaway git repo so `git apply` has something to
         # check the patch against
-        init = _run(["git", "init", "-q"], cwd=sandbox_path)
+        _run(["git", "init", "-q"], cwd=sandbox_path)
         _run(["git", "add", "-A"], cwd=sandbox_path)
-        _run(["git", "-c", "user.email=agent@local", "-c", "user.name=agent",
-              "commit", "-q", "-m", "baseline"], cwd=sandbox_path)
+        _run(
+            [
+                "git",
+                "-c",
+                "user.email=agent@local",
+                "-c",
+                "user.name=agent",
+                "commit",
+                "-q",
+                "-m",
+                "baseline",
+            ],
+            cwd=sandbox_path,
+        )
 
     result = _run(
         ["git", "apply", "--whitespace=fix", str(patch_file.name)],
@@ -82,6 +112,7 @@ def apply_diff(sandbox_path: str, diff_text: str) -> tuple[bool, str]:
                 capture_output=True,
                 text=True,
                 timeout=10,
+                check=False,
             )
         if patch_proc.returncode == 0:
             return True, patch_proc.stdout + patch_proc.stderr
@@ -96,16 +127,19 @@ def apply_diff(sandbox_path: str, diff_text: str) -> tuple[bool, str]:
     return False, combined_error
 
 
-def run_tests(sandbox_path: str, test_command: Optional[List[str]] = None,
-              timeout: int = 180) -> tuple[bool, str]:
+def run_tests(
+    sandbox_path: str, test_command: list[str] | None = None, timeout: int = 180
+) -> tuple[bool, str]:
     """
     Run the regression suite inside the sandbox. Auto-detects pytest vs
     npm test if no explicit command is given.
     """
     if test_command is None:
-        if (Path(sandbox_path) / "pytest.ini").exists() or \
-           any(Path(sandbox_path).glob("test_*.py")) or \
-           any(Path(sandbox_path).glob("**/test_*.py")):
+        if (
+            (Path(sandbox_path) / "pytest.ini").exists()
+            or any(Path(sandbox_path).glob("test_*.py"))
+            or any(Path(sandbox_path).glob("**/test_*.py"))
+        ):
             test_command = ["python3", "-m", "pytest", "-q"]
         elif (Path(sandbox_path) / "package.json").exists():
             test_command = ["npm", "test", "--silent"]
@@ -118,8 +152,9 @@ def run_tests(sandbox_path: str, test_command: Optional[List[str]] = None,
         py_files = list(Path(sandbox_path).rglob("*.py"))
         errors = []
         for f in py_files:
-            r = subprocess.run(["python3", "-m", "py_compile", str(f)],
-                                capture_output=True, text=True)
+            r = subprocess.run(
+                ["python3", "-m", "py_compile", str(f)], capture_output=True, text=True, check=False
+            )
             if r.returncode != 0:
                 errors.append(r.stderr)
         if errors:
@@ -136,17 +171,23 @@ def run_tests(sandbox_path: str, test_command: Optional[List[str]] = None,
         return False, f"Test command not found ({' '.join(test_command)}): {e}"
 
 
-def remediate(repo_path: str, vuln: Dict[str, Any], context: Dict[str, Any],
-              backend: str = "dry-run", model: Optional[str] = None,
-              api_key: Optional[str] = None, max_attempts: int = 3,
-              test_command: Optional[List[str]] = None,
-              keep_sandbox: bool = True) -> RemediationResult:
+def remediate(
+    repo_path: str,
+    vuln: dict[str, Any],
+    context: dict[str, Any],
+    backend: str = "dry-run",
+    model: str | None = None,
+    api_key: str | None = None,
+    max_attempts: int = _default_max_attempts(),
+    test_command: list[str] | None = None,
+    keep_sandbox: bool = True,
+) -> RemediationResult:
     """
     Full Step 4 loop for a single vulnerability:
     generate -> sandbox -> apply -> test -> (repair loop) -> result.
     """
     sandbox_path = make_sandbox(repo_path)
-    attempts: List[AttemptRecord] = []
+    attempts: list[AttemptRecord] = []
     prior_error, prior_diff = None, None
     success = False
     final_diff = None
@@ -155,8 +196,14 @@ def remediate(repo_path: str, vuln: Dict[str, Any], context: Dict[str, Any],
         start = time.time()
 
         patch_result: PatchResult = generate_patch(
-            vuln, context, backend=backend, model=model, api_key=api_key,
-            prior_error=prior_error, prior_diff=prior_diff, repo_root=repo_path,
+            vuln,
+            context,
+            backend=backend,
+            model=model,
+            api_key=api_key,
+            prior_error=prior_error,
+            prior_diff=prior_diff,
+            repo_root=repo_path,
         )
         diff_text = patch_result.diff
 
@@ -168,16 +215,18 @@ def remediate(repo_path: str, vuln: Dict[str, Any], context: Dict[str, Any],
             tests_passed, test_output = run_tests(sandbox_path, test_command)
 
         duration = time.time() - start
-        attempts.append(AttemptRecord(
-            attempt_number=attempt_num,
-            diff=diff_text,
-            apply_succeeded=applied,
-            apply_output=apply_output,
-            tests_ran=tests_ran,
-            tests_passed=tests_passed,
-            test_output=test_output,
-            duration_seconds=round(duration, 2),
-        ))
+        attempts.append(
+            AttemptRecord(
+                attempt_number=attempt_num,
+                diff=diff_text,
+                apply_succeeded=applied,
+                apply_output=apply_output,
+                tests_ran=tests_ran,
+                tests_passed=tests_passed,
+                test_output=test_output,
+                duration_seconds=round(duration, 2),
+            )
+        )
 
         if applied and tests_passed:
             success = True
@@ -211,10 +260,15 @@ def remediate(repo_path: str, vuln: Dict[str, Any], context: Dict[str, Any],
     return result
 
 
-def remediate_batch(repo_path: str, vulns_and_contexts: List[Dict[str, Any]],
-                     backend: str = "dry-run", model: Optional[str] = None,
-                     api_key: Optional[str] = None, max_attempts: int = 3,
-                     test_command: Optional[List[str]] = None) -> Dict[str, Any]:
+def remediate_batch(
+    repo_path: str,
+    vulns_and_contexts: list[dict[str, Any]],
+    backend: str = "dry-run",
+    model: str | None = None,
+    api_key: str | None = None,
+    max_attempts: int = _default_max_attempts(),
+    test_command: list[str] | None = None,
+) -> dict[str, Any]:
     """
     Batch mode: apply the generated fix for every given vulnerability into
     ONE shared sandbox, then run the test suite once against the combined
@@ -231,8 +285,14 @@ def remediate_batch(repo_path: str, vulns_and_contexts: List[Dict[str, Any]],
 
         for attempt_num in range(1, max_attempts + 1):
             patch_result = generate_patch(
-                vuln, context, backend=backend, model=model, api_key=api_key,
-                prior_error=prior_error, prior_diff=prior_diff, repo_root=repo_path,
+                vuln,
+                context,
+                backend=backend,
+                model=model,
+                api_key=api_key,
+                prior_error=prior_error,
+                prior_diff=prior_diff,
+                repo_root=repo_path,
             )
             applied, apply_output = apply_diff(sandbox_path, patch_result.diff)
             attempts.append({"attempt": attempt_num, "applied": applied, "output": apply_output})
@@ -241,10 +301,15 @@ def remediate_batch(repo_path: str, vulns_and_contexts: List[Dict[str, Any]],
                 break
             prior_error, prior_diff = f"Patch failed to apply:\n{apply_output}", patch_result.diff
 
-        per_vuln_results.append({
-            "vuln_id": vuln["id"], "package": vuln["package"],
-            "applied": applied_ok, "diff": final_diff, "apply_attempts": attempts,
-        })
+        per_vuln_results.append(
+            {
+                "vuln_id": vuln["id"],
+                "package": vuln["package"],
+                "applied": applied_ok,
+                "diff": final_diff,
+                "apply_attempts": attempts,
+            }
+        )
 
     tests_passed, test_output = run_tests(sandbox_path, test_command)
 
@@ -268,18 +333,28 @@ def main():
     parser.add_argument("--backend", default="dry-run", choices=["dry-run", "ollama", "groq"])
     parser.add_argument("--model", default=None)
     parser.add_argument("--api-key", default=None)
-    parser.add_argument("--max-attempts", type=int, default=3)
-    parser.add_argument("--batch", action="store_true",
-                         help="Apply all patches into one sandbox, test once (realistic single-PR flow)")
+    parser.add_argument("--max-attempts", type=int, default=None)
+    parser.add_argument(
+        "--batch",
+        action="store_true",
+        help="Apply all patches into one sandbox, test once (realistic single-PR flow)",
+    )
     args = parser.parse_args()
+
+    if args.max_attempts is None:
+        args.max_attempts = _default_max_attempts()
 
     with open(args.code_contexts_json) as f:
         contexts = json.load(f)
 
     if args.batch:
         result = remediate_batch(
-            args.repo_path, contexts, backend=args.backend, model=args.model,
-            api_key=args.api_key, max_attempts=args.max_attempts,
+            args.repo_path,
+            contexts,
+            backend=args.backend,
+            model=args.model,
+            api_key=args.api_key,
+            max_attempts=args.max_attempts,
         )
         print(f"\n=== Batch remediation ({len(contexts)} CVE(s)) ===")
         for p in result["patches"]:
@@ -297,15 +372,21 @@ def main():
         vuln, ctx = c["vuln"], c["context"]
         print(f"\n=== Remediating {vuln['id']} ({vuln['package']}) ===")
         result = remediate(
-            args.repo_path, vuln, ctx,
-            backend=args.backend, model=args.model, api_key=args.api_key,
+            args.repo_path,
+            vuln,
+            ctx,
+            backend=args.backend,
+            model=args.model,
+            api_key=args.api_key,
             max_attempts=args.max_attempts,
         )
         status = "SUCCESS" if result.success else "FAILED"
         print(f"Result: {status} after {len(result.attempts)} attempt(s)")
         for a in result.attempts:
-            print(f"  attempt {a.attempt_number}: applied={a.apply_succeeded} "
-                  f"tests_passed={a.tests_passed} ({a.duration_seconds}s)")
+            print(
+                f"  attempt {a.attempt_number}: applied={a.apply_succeeded} "
+                f"tests_passed={a.tests_passed} ({a.duration_seconds}s)"
+            )
         all_results.append(asdict(result))
 
     out_path = Path(args.repo_path) / "remediation_results.json"
