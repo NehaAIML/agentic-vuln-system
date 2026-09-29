@@ -87,3 +87,24 @@ graph TD
     F -->|Refined Patch| E
     E -->|Tests Passed| G[Automated Branch & PR Creation]
 ```
+
+## Limitations
+
+- **Python only.** AST-based reachability parses Python sources; other
+  languages are not analyzed.
+- **Static analysis is incomplete by nature.** Dynamic imports,
+  `importlib.import_module()`, `getattr()` dispatches, `eval()`, and
+  reflection are not tracked. A CVE in code reachable only through
+  these mechanisms may be filtered as "dead code."
+- **LLM patches are non-deterministic.** The same CVE may receive a
+  different patch on different runs, or between `--backend dry-run`
+  and `--backend ollama`.
+- **Sandbox is not hardened.** Patches and tests execute in a plain
+  temp directory with the host's network and env vars. See
+  `SECURITY.md` for the full threat model.
+- **EPSS scoring coverage.** `scanners/prioritization.py` has test
+  coverage (11 tests). `scanners/reachability.py` and
+  `agent/patch_generator.py` HTTP paths do not yet.
+- **Cross-CVE coupling.** Batch mode stacks patches into one sandbox;
+  an unrelated failing test can mask a legitimate fix. This is
+  documented in the "Hard-Won Engineering Lessons" section above.

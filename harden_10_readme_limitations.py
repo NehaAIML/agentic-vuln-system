@@ -6,7 +6,7 @@ import shutil
 import sys
 from pathlib import Path
 
-DRY_RUN = True
+DRY_RUN = False
 TARGET = Path.cwd() / "README.md"
 
 LIMITATIONS = """## Limitations
