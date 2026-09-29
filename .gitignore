@@ -6,3 +6,13 @@ __pycache__/
 sample_repo/*.json
 !sample_repo/vuln_scan_results.json
 .env
+
+# Python build artifacts
+*.egg-info/
+*.egg-info
+build/
+dist/
+
+# Local backups created by harden scripts
+*.bak
+*.toml.bak
