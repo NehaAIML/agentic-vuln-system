@@ -222,3 +222,13 @@ The dashboard reads these files from the target repo directory:
 | `code_contexts.json` | Step 2 | AST context bundles |
 | `remediation_results.json` | Step 4 | Patch attempts + test outcomes |
 | `run_report.json` | Pipeline end | Structured run summary |
+
+## Dashboard Preview & Performance Proof
+
+### 1. Live Pipeline & Performance Metrics
+The primary dashboard view tracks active CVEs, reachability triage, and sandbox verification speed:
+![Dashboard Overview](assets/dashboard_overview.png)
+
+### 2. Enterprise Production Simulation & 500-CVE Audit Trail
+The simulation profile showcases high-scale execution performance and an inspectable 500-CVE audit log:
+![Production Simulation](assets/production_simulation.png)
