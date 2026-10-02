@@ -19,6 +19,7 @@ An autonomous security assistant that scans your code for vulnerabilities, ignor
 
 - **Measured, not claimed.** Reachability filtering scores **100% precision,
   100% recall, 100% accuracy** on a 35-CVE benchmark under strict scoring.
+  Under the strict (direct-import) rule the filter scores 100% against its own design rule; under a loose transitive definition recall is 82.9% (6 of 35 live misses). See the article for full disclosure.
   See benchmarks/README.md for methodology, ground truth, and a reproducible
   scoring script.
 - **Real bugs found and fixed.** The benchmark itself uncovered three missing
